@@ -216,3 +216,85 @@ body {
 .form-input:focus,
 .form-textarea:focus { border-color: #C99A7F; }
 .form-textarea { resize: vertical; }
+
+/* Mobile nav */
+.nav-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: inherit;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-end;
+  z-index: 70;
+  position: relative;
+}
+.nav-hamburger span {
+  display: block;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform .35s ease, opacity .35s ease, width .35s ease;
+}
+
+.nav-mobile-menu {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #1C1814;
+  z-index: 55;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 clamp(24px,8vw,80px);
+  gap: 20px;
+}
+.nav-mobile-menu.open { display: flex; }
+
+.nav-mobile-link {
+  text-decoration: none;
+  color: #F1ECE1;
+  font-family: var(--font-newsreader), serif;
+  font-size: clamp(38px,10vw,68px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  transition: color .3s ease;
+}
+.nav-mobile-link:hover { color: #C99A7F; }
+
+.nav-mobile-cta {
+  margin-top: 20px;
+  text-decoration: none;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #C99A7F;
+  border: 1px solid rgba(201,154,127,0.45);
+  padding: 14px 28px;
+  border-radius: 100px;
+  transition: border-color .3s ease, background .3s ease;
+}
+.nav-mobile-cta:hover { border-color: #C99A7F; background: rgba(201,154,127,0.08); }
+
+/* Responsive overrides */
+@media (max-width: 768px) {
+  .nav-hamburger { display: flex; }
+  .nav-desktop-links { display: none !important; }
+  .form-name-email { grid-template-columns: 1fr !important; }
+  .testimonial-row { grid-template-columns: 1fr !important; }
+  .testimonial-attribution { text-align: left !important; min-width: unset !important; padding-top: 6px !important; }
+  .service-row { grid-template-columns: 44px 1fr 32px !important; gap: 12px !important; }
+  .voices-header { flex-direction: column !important; align-items: flex-start !important; }
+  .voices-header h2 { text-align: left !important; }
+}
+
+@media (max-width: 480px) {
+  .service-row { grid-template-columns: 1fr !important; }
+  .service-row-num { display: none !important; }
+  .service-row-arrow { display: none !important; }
+  .footer-links-grid { grid-template-columns: 1fr 1fr !important; }
+}

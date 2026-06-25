@@ -24,11 +24,43 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const BASE_URL = "https://anahat-entertainment.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Anahat — Creative Studio",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "Anahat Entertainment — Creative Studio",
+    template: "%s | Anahat Entertainment",
+  },
   description:
-    "Anahat is a creative studio for advertising and branded content, web development, social, and the intelligent tools shaping what comes next.",
-  keywords: "creative studio, advertising, branded content, web development, AI, social media, Mumbai",
+    "Anahat Entertainment is a creative studio for advertising and branded content, web development, social, and the intelligent tools shaping what comes next.",
+  keywords: ["creative studio", "advertising", "branded content", "web development", "AI partnerships", "social media", "Pune", "India"],
+  authors: [{ name: "Anahat Entertainment" }],
+  creator: "Anahat Entertainment",
+  publisher: "Anahat Entertainment",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  alternates: { canonical: BASE_URL },
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: BASE_URL,
+    siteName: "Anahat Entertainment",
+    title: "Anahat Entertainment — Creative Studio",
+    description:
+      "A creative studio for advertising and branded content, web development, social, and the intelligent tools shaping what comes next.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Anahat Entertainment — Creative Studio" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Anahat Entertainment — Creative Studio",
+    description:
+      "A creative studio for advertising and branded content, web development, social, and the intelligent tools shaping what comes next.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
