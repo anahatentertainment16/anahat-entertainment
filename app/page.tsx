@@ -5,6 +5,10 @@ import Link from "next/link";
 import { services } from "@/lib/services";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
+import { MotionPathPlugin } from "gsap/MotionPathPlugin";
+import { Draggable } from "gsap/Draggable";
+import { InertiaPlugin } from "gsap/InertiaPlugin";
 
 type Testimonial = { id: number; name: string; org: string | null; quote: string };
 
@@ -21,7 +25,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
+    gsap.registerPlugin(ScrollTrigger, SplitText, MotionPathPlugin, Draggable, InertiaPlugin);
+
+    const splits: SplitText[] = [];
 
     const ctx = gsap.context(() => {
 
@@ -35,6 +41,24 @@ export default function Home() {
         .from(".hero-cta-group", { opacity: 0, y: 22, duration: 0.9 }, 0.88)
         .from(".hero-deco-ring", { opacity: 0, scale: 0.72, duration: 1.4, ease: "power3.out" }, 0.0);
 
+      // ── HERO ORBIT (MotionPath) ────────────────────────────────────────
+      gsap.to(".orbit-dot", {
+        duration: 22,
+        repeat: -1,
+        ease: "none",
+        motionPath: { path: "#orbit-path", start: 0, end: 1 },
+      });
+      gsap.to(".orbit-dot", { opacity: 0.8, duration: 1.8, delay: 1.6, ease: "power2.out" });
+
+      // "resonate." char cascade — fires after line reveal completes
+      const resonateEl = document.querySelector(".hero-line-inner em") as HTMLElement | null;
+      if (resonateEl) {
+        const split = new SplitText(resonateEl, { type: "chars" });
+        splits.push(split);
+        gsap.set(split.chars, { display: "inline-block", opacity: 0, y: 14 });
+        heroTl.to(split.chars, { opacity: 1, y: 0, stagger: 0.035, duration: 0.52, ease: "power2.out" }, 1.58);
+      }
+
       // ── SCROLL PROGRESS BAR ────────────────────────────────────────────
       ScrollTrigger.create({
         start: "top top",
@@ -44,8 +68,24 @@ export default function Home() {
         },
       });
 
+      // ── SECTION LABEL char reveal ──────────────────────────────────────
+      const labelEls = Array.from(document.querySelectorAll("span")).filter(
+        (el) => /^\([A-Za-z\s]+\)$/.test(el.textContent?.trim() ?? "")
+      ) as HTMLElement[];
+      labelEls.forEach((el) => {
+        const split = new SplitText(el, { type: "chars" });
+        splits.push(split);
+        gsap.set(split.chars, { display: "inline-block" });
+        gsap.from(split.chars, {
+          opacity: 0, scale: 0.6, y: 8, stagger: 0.04, duration: 0.6, ease: "back.out(2)",
+          scrollTrigger: { trigger: el, start: "top 89%", once: true },
+        });
+      });
+
       // ── GENERIC data-reveal ────────────────────────────────────────────
       gsap.utils.toArray<Element>("[data-reveal]").forEach((el) => {
+        // labels handled by SplitText above
+        if (/^\([A-Za-z\s]+\)$/.test(el.textContent?.trim() ?? "")) return;
         gsap.fromTo(
           el,
           { opacity: 0, y: 42 },
@@ -59,6 +99,18 @@ export default function Home() {
         );
       });
 
+      // ── SERVICES h2 word reveal ────────────────────────────────────────
+      const servicesH2 = document.querySelector("#services h2") as HTMLElement | null;
+      if (servicesH2) {
+        const split = new SplitText(servicesH2, { type: "words" });
+        splits.push(split);
+        gsap.set(split.words, { display: "inline-block" });
+        gsap.from(split.words, {
+          opacity: 0, y: 48, duration: 1.1, ease: "power4.out", stagger: 0.06,
+          scrollTrigger: { trigger: servicesH2, start: "top 82%", once: true },
+        });
+      }
+
       // ── SERVICE ROWS stagger batch ─────────────────────────────────────
       ScrollTrigger.batch(".service-row", {
         onEnter: (els) => {
@@ -70,16 +122,34 @@ export default function Home() {
         once: true,
       });
 
-      // ── TESTIMONIAL ROWS stagger ───────────────────────────────────────
-      ScrollTrigger.batch(".testimonial-row", {
-        onEnter: (els) => {
-          gsap.fromTo(els, { opacity: 0, y: 32 }, {
-            opacity: 1, y: 0, duration: 1, ease: "power3.out", stagger: 0.13,
-          });
-        },
-        start: "top 88%",
-        once: true,
-      });
+      // ── STUDIO MANIFESTO word scrub ────────────────────────────────────
+      const manifestoEl = document.querySelector(".studio-manifesto") as HTMLElement | null;
+      if (manifestoEl) {
+        const split = new SplitText(manifestoEl, { type: "words" });
+        splits.push(split);
+        gsap.fromTo(
+          split.words,
+          { opacity: 0.15 },
+          {
+            opacity: 1,
+            stagger: { each: 0.09, from: "start" },
+            ease: "none",
+            scrollTrigger: { trigger: manifestoEl, start: "top 70%", end: "bottom 25%", scrub: 1.2 },
+          }
+        );
+      }
+
+      // ── CONTACT h2 word reveal ─────────────────────────────────────────
+      const contactH2 = document.querySelector("#contact h2") as HTMLElement | null;
+      if (contactH2) {
+        const split = new SplitText(contactH2, { type: "words" });
+        splits.push(split);
+        gsap.set(split.words, { display: "inline-block" });
+        gsap.from(split.words, {
+          opacity: 0, y: 60, duration: 1.3, ease: "power4.out", stagger: 0.08,
+          scrollTrigger: { trigger: contactH2, start: "top 85%", once: true },
+        });
+      }
 
       // ── HERO PARALLAX (deco ring) ──────────────────────────────────────
       gsap.to(".hero-deco-ring", {
@@ -102,18 +172,6 @@ export default function Home() {
           start: "top top",
           end: "bottom top",
           scrub: 1.2,
-        },
-      });
-
-      // ── STUDIO SECTION: big text scrub ────────────────────────────────
-      gsap.from(".studio-manifesto", {
-        opacity: 0.18,
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".studio-manifesto",
-          start: "top 75%",
-          end: "bottom 30%",
-          scrub: true,
         },
       });
 
@@ -217,12 +275,32 @@ export default function Home() {
 
     return () => {
       ctx.revert();
+      splits.forEach((s) => s.revert());
       ScrollTrigger.getAll().forEach((t) => t.kill());
       menuTl?.kill();
       menuTlRef.current = null;
       cleanupCursor?.();
     };
   }, []);
+
+  useEffect(() => {
+    if (!testimonials.length) return;
+    const viewport = document.querySelector<HTMLElement>(".testimonials-viewport");
+    const track = document.querySelector<HTMLElement>(".testimonials-track");
+    if (!viewport || !track) return;
+
+    const maxX = -(track.scrollWidth - viewport.offsetWidth);
+    const [dragger] = Draggable.create(track, {
+      type: "x",
+      bounds: { minX: Math.min(maxX, 0), maxX: 0 },
+      edgeResistance: 0.92,
+      inertia: true,
+      onPress() { viewport.style.cursor = "grabbing"; },
+      onRelease() { viewport.style.cursor = "grab"; },
+    });
+
+    return () => { dragger.kill(); };
+  }, [testimonials]);
 
   const handleMenuToggle = () => {
     const tl = menuTlRef.current;
@@ -321,6 +399,25 @@ export default function Home() {
               pointerEvents: "none",
             }}
           />
+
+          {/* ORBIT SVG — MotionPath track */}
+          <svg
+            aria-hidden
+            viewBox="0 0 100 100"
+            style={{
+              position: "absolute",
+              right: "clamp(-120px,-8vw,-40px)",
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: "clamp(320px,38vw,620px)",
+              height: "clamp(320px,38vw,620px)",
+              overflow: "visible",
+              pointerEvents: "none",
+            }}
+          >
+            <path id="orbit-path" d="M 2,50 a 48,48 0 1,0 96,0 a 48,48 0 1,0 -96,0" fill="none" stroke="none" />
+            <circle className="orbit-dot" cx="2" cy="50" r="3.5" fill="#9E5C3D" style={{ opacity: 0 }} />
+          </svg>
 
           <div className="hero-text-block" style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%", position: "relative", zIndex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "clamp(30px,5vh,66px)" }}>
@@ -442,21 +539,43 @@ export default function Home() {
               <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#9E5C3D" }}>(Voices)</span>
               <h2 style={{ margin: 0, maxWidth: 560, fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(28px,4vw,56px)", lineHeight: 1.04, letterSpacing: "-0.02em", color: "#1C1814", textAlign: "right" }}>What partners say</h2>
             </div>
-            {testimonials.map((q) => (
+            {testimonials.length > 0 && (
               <div
-                key={q.id}
-                className="testimonial-row"
-                style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "clamp(20px,4vw,64px)", alignItems: "start", padding: "clamp(34px,5vw,56px) 0", borderTop: "1px solid rgba(28,24,20,0.16)" }}
+                className="testimonials-viewport"
+                style={{ overflow: "hidden", cursor: "grab", WebkitUserSelect: "none", userSelect: "none", marginBottom: "clamp(20px,3vh,32px)" }}
               >
-                <p style={{ margin: 0, maxWidth: 920, fontFamily: "var(--font-newsreader), serif", fontWeight: 300, fontSize: "clamp(24px,3.2vw,44px)", lineHeight: 1.18, letterSpacing: "-0.015em", color: "#1C1814" }}>
-                  &ldquo;{q.quote}&rdquo;
-                </p>
-                <div className="testimonial-attribution" style={{ textAlign: "right", minWidth: 150, paddingTop: 10 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#1C1814", marginBottom: 4 }}>{q.name}</div>
-                  {q.org && <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#57503F" }}>{q.org}</div>}
+                <div
+                  className="testimonials-track"
+                  style={{ display: "flex", gap: "clamp(14px,2vw,24px)", paddingBottom: 2 }}
+                >
+                  {testimonials.map((q) => (
+                    <div
+                      key={q.id}
+                      className="testimonial-card"
+                      style={{
+                        width: "clamp(280px,42vw,600px)",
+                        flexShrink: 0,
+                        padding: "clamp(28px,3.5vw,48px)",
+                        border: "1px solid rgba(28,24,20,0.14)",
+                        borderRadius: 12,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        gap: 28,
+                      }}
+                    >
+                      <p style={{ margin: 0, fontFamily: "var(--font-newsreader), serif", fontWeight: 300, fontSize: "clamp(19px,2.1vw,30px)", lineHeight: 1.25, letterSpacing: "-0.015em", color: "#1C1814" }}>
+                        &ldquo;{q.quote}&rdquo;
+                      </p>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1814", marginBottom: 4 }}>{q.name}</div>
+                        {q.org && <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#57503F" }}>{q.org}</div>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
             <div style={{ borderTop: "1px solid rgba(28,24,20,0.16)", display: "flex", justifyContent: "flex-end", paddingTop: 24 }}>
               <Link href="/testimonial" data-hover data-magnetic className="btn-secondary">Share your experience &rarr;</Link>
             </div>
