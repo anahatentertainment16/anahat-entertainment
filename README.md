@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Anahat Entertainment — Creative Studio
 
-## Getting Started
+Anahat Entertainment is a premium creative studio based in Pune, India. We build for advertising and branded content, web development, social media, and the intelligent AI tools shaping the future.
 
-First, run the development server:
+This is a modern, high-performance web application built with Next.js, React, and GSAP. It is designed to deliver a smooth, high-fidelity experience featuring immersive animations, custom cursor interactions, and responsive design systems.
+
+---
+
+## ✦ Core Disciplines
+
+1. **Advertising & Branded Content**
+   - Campaigns and films designed to earn attention organically. End-to-end production with high-impact storytelling.
+2. **Web Development**
+   - Handcrafted digital products and websites engineered to feel inevitable—fast, highly interactive, and visually stunning.
+3. **AI Partnerships**
+   - Creative pipelines built with generative workflows and bespoke models to extend the capability of modern teams.
+4. **Social Media**
+   - Always-on storytelling, format creation, and community building that turn passive audiences into active brand advocates.
+
+---
+
+## ✦ Tech Stack
+
+- **Framework:** Next.js (App Router, React 19)
+- **Animation:** GSAP (ScrollTrigger, SplitText, MotionPathPlugin, Draggable, InertiaPlugin)
+- **Styling:** Tailwind CSS + custom Vanilla CSS themes and custom properties
+- **Fonts:** Newsreader (Serif), Hanken Grotesk (Sans-serif), JetBrains Mono (Monospace)
+- **Database / API:** Next.js Route Handlers for testimonials and inquiries
+
+---
+
+## ✦ Team
+
+Our core frequency is powered by a small, senior team driving design, engineering, and storytelling:
+
+- **Atharva Kshirsagar** — _Social Media / Content / Branding_
+  - Leads our creative direction for social channels, original content, and brand design. Atharva shapes the voice, visual identity, and social narratives that help brands find their cultural resonance.
+- **Ashutosh Swamy** — _Website / AI Partnerships_
+  - Directs our engineering, web architecture, and AI integrations. Ashutosh builds premium interactive web applications and structures technology partnerships that scale and leverage next-gen tools.
+
+---
+
+## ✦ Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher recommended)
+- npm, yarn, pnpm, or bun
+
+### Installation
+
+Clone the repository and install the dependencies:
+
+```bash
+npm install
+```
+
+### Running Locally
+
+To start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ✦ Project Structure
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+├── app/
+│   ├── admin/           # Admin portal
+│   ├── api/             # API routes (testimonials, inquiries)
+│   ├── services/        # Service-specific detail pages
+│   ├── testimonial/     # Share your experience portal
+│   ├── globals.css      # Core styles & variables
+│   ├── layout.tsx       # Root layout, metadata & web fonts
+│   └── page.tsx         # Interactive landing page
+├── lib/
+│   └── services.ts      # Core services structured data
+└── public/              # Static assets (favicons, og-images)
+```

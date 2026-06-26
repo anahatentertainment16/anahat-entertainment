@@ -336,6 +336,7 @@ export default function Home() {
           </a>
           <div className="nav-desktop-links" style={{ display: "flex", gap: 32, alignItems: "center" }}>
             <a data-hover href="#services" className="nav-link">Services</a>
+            <a data-hover href="#projects" className="nav-link">Projects</a>
             <a data-hover href="#studio" className="nav-link">Studio</a>
             <a data-hover href="#voices" className="nav-link">Voices</a>
             <a data-hover href="#contact" className="nav-cta">Start a project</a>
@@ -353,7 +354,7 @@ export default function Home() {
         <button className="nav-mobile-close" aria-label="Close menu" onClick={handleMenuClose}>
           <span /><span />
         </button>
-        {["Services", "Studio", "Voices"].map((l) => (
+        {["Services", "Projects", "Studio", "Voices"].map((l) => (
           <a key={l} href={`#${l.toLowerCase()}`} className="nav-mobile-link" onClick={handleMenuClose}>{l}</a>
         ))}
         <a href="#contact" className="nav-mobile-cta" onClick={handleMenuClose}>Start a project</a>
@@ -443,7 +444,7 @@ export default function Home() {
                 <a href="#contact" data-hover data-magnetic className="btn-primary">
                   Start a project <span style={{ fontSize: 15 }}>&rarr;</span>
                 </a>
-                <a href="#voices" data-hover data-magnetic className="btn-secondary">
+                <a href="#projects" data-hover data-magnetic className="btn-secondary">
                   Selected work
                 </a>
               </div>
@@ -495,6 +496,88 @@ export default function Home() {
           </div>
         </section>
 
+        {/* PROJECTS */}
+        <section id="projects" style={{ padding: "clamp(72px,12vh,150px) 0", borderTop: "1px solid rgba(28,24,20,0.14)" }}>
+          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
+            <div
+              data-reveal
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 24, marginBottom: "clamp(36px,6vh,64px)" }}
+            >
+              <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#9E5C3D" }}>(Selected Work)</span>
+              <h2 style={{ margin: 0, maxWidth: 680, fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(30px,4.4vw,62px)", lineHeight: 1.02, letterSpacing: "-0.02em", color: "#1C1814" }}>
+                Websites engineered for <em style={{ fontStyle: "italic", color: "#9E5C3D" }}>resonance.</em>
+              </h2>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
+              {[
+                {
+                  title: "Resonance Jam Room",
+                  link: "https://resonancejamroom.in",
+                  tag: "Web Application",
+                  desc: "A custom real-time booking and scheduling system for rehearsal rooms, built to streamline studio workflows and online payments."
+                },
+                {
+                  title: "Ghardaar24 Real Estate",
+                  link: "https://ghardaar24.com",
+                  tag: "Real Estate Portal",
+                  desc: "A premium listing and property search platform featuring high-fidelity interactive filtering, maps, and seamless lead management."
+                },
+                {
+                  title: "Rajeshwari Pawar Portfolio",
+                  link: "https://rajeshwaripawar.com",
+                  tag: "Portfolio Showcase",
+                  desc: "An immersive, media-rich portfolio website designed for a creative professional, showcasing visual storytelling and interactive galleries."
+                },
+                {
+                  title: "Mohammad Ayaz Sheikh Portfolio",
+                  link: "https://mohammadayaz.com",
+                  tag: "Portfolio Showcase",
+                  desc: "A minimalist digital portfolio showcase featuring fluid custom page transitions, focusing on project case studies and clean typography."
+                },
+                {
+                  title: "Bluenture LLP",
+                  link: "https://blueturellp.com",
+                  tag: "Corporate Website",
+                  desc: "A professional web experience designed to establish digital authority, showcase B2B services, and drive corporate inquiries."
+                },
+                {
+                  title: "Tantava Ethnic Wear Brand",
+                  link: null,
+                  tag: "Brand Experience",
+                  desc: "A premium digital presence for an ethnic wear brand, capturing cultural heritage with contemporary web aesthetics."
+                },
+                {
+                  title: "Gyan Setu Official Website",
+                  link: null,
+                  tag: "Educational Platform",
+                  desc: "The digital gateway for an educational initiative, designed to provide accessible learning resources and facilitate community engagement."
+                }
+              ].map((proj, idx) => {
+                const Card = proj.link ? "a" : "div";
+                const cardProps = proj.link
+                  ? { href: proj.link, target: "_blank", rel: "noopener noreferrer", className: "project-card" }
+                  : { className: "project-card project-card-static" };
+
+                return (
+                  <Card key={idx} {...cardProps} data-hover={proj.link ? "" : undefined} data-reveal>
+                    <div>
+                      <span className="project-card-tag">{proj.tag}</span>
+                      <h3>{proj.title}</h3>
+                      <p>{proj.desc}</p>
+                    </div>
+                    {proj.link ? (
+                      <span className="project-card-arrow">&#8599;</span>
+                    ) : (
+                      <span style={{ position: "absolute", top: 24, right: 24, fontFamily: "var(--font-jetbrains), monospace", fontSize: 10, letterSpacing: "0.05em", color: "rgba(28,24,20,0.3)", textTransform: "uppercase" }}>[Showcase]</span>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
         {/* STUDIO */}
         <section id="studio" style={{ background: "#1C1814", color: "#F1ECE1", padding: "clamp(82px,14vh,172px) 0" }}>
           <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
@@ -523,6 +606,31 @@ export default function Home() {
                   <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "rgba(241,236,225,0.72)" }}>{p.body}</p>
                 </div>
               ))}
+            </div>
+
+            {/* TEAM */}
+            <div data-reveal style={{ marginTop: "clamp(64px,10vh,120px)" }}>
+              <span style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#C99A7F", marginBottom: "clamp(26px,4vh,44px)" }}>(Team)</span>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "clamp(36px,6vw,72px)" }}>
+                {[
+                  {
+                    name: "Atharva Kshirsagar",
+                    role: "Social Media / Content / Branding",
+                    desc: "Leads our creative direction for social channels, original content, and brand design. Atharva shapes the voice, visual identity, and social narratives that help brands find their cultural resonance."
+                  },
+                  {
+                    name: "Ashutosh Swamy",
+                    role: "Website / AI Partnerships",
+                    desc: "Directs our engineering, web architecture, and AI integrations. Ashutosh builds premium interactive web applications and structures technology partnerships that scale and leverage next-gen tools."
+                  }
+                ].map((member, index) => (
+                  <div key={index} className="team-member" style={{ display: "flex", flexDirection: "column" }}>
+                    <h4 style={{ margin: "0 0 8px", fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(24px,3vw,38px)", color: "#F1ECE1", fontStyle: "italic" }}>{member.name}</h4>
+                    <span style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#C99A7F", marginBottom: 18 }}>{member.role}</span>
+                    <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: "rgba(241,236,225,0.72)" }}>{member.desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
           </div>
@@ -661,7 +769,7 @@ export default function Home() {
               <div>
                 <p style={{ margin: "0 0 22px", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(241,236,225,0.4)" }}>Navigate</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Services", "Studio", "Voices"].map((l) => (
+                  {["Services", "Projects", "Studio", "Voices"].map((l) => (
                     <a key={l} href={`#${l.toLowerCase()}`} data-hover style={{ textDecoration: "none", fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(18px,1.6vw,22px)", color: "#F1ECE1", transition: "color .3s ease", lineHeight: 1 }}
                       onMouseEnter={e => (e.currentTarget.style.color = "#C99A7F")}
                       onMouseLeave={e => (e.currentTarget.style.color = "#F1ECE1")}

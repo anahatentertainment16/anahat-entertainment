@@ -381,3 +381,86 @@ body {
   .service-row-arrow { display: none !important; }
   .footer-links-grid { grid-template-columns: 1fr 1fr !important; }
 }
+
+/* Team Member Hover Animations */
+.team-member h4 {
+  transition: color 0.45s cubic-bezier(0.215, 0.61, 0.355, 1), transform 0.45s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+.team-member:hover h4 {
+  color: #C99A7F;
+  transform: translateX(6px);
+}
+
+/* Project Cards */
+.project-card {
+  text-decoration: none;
+  color: inherit;
+  background: rgba(28, 24, 20, 0.02);
+  border: 1px solid rgba(28, 24, 20, 0.08);
+  border-radius: 12px;
+  padding: clamp(20px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+  transition: background-color 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), border-color 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.project-card:hover {
+  background: rgba(28, 24, 20, 0.04);
+  border-color: rgba(158, 92, 61, 0.35);
+  transform: translateY(-4px);
+}
+.project-card-arrow {
+  position: absolute;
+  top: clamp(18px, 2.5vw, 24px);
+  right: clamp(18px, 2.5vw, 24px);
+  font-family: var(--font-newsreader), serif;
+  font-size: 24px;
+  color: rgba(28, 24, 20, 0.4);
+  transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), color 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+.project-card:hover .project-card-arrow {
+  transform: translate(3px, -3px);
+  color: #9E5C3D;
+}
+.project-card-tag {
+  display: inline-block;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9E5C3D;
+  margin-bottom: 12px;
+}
+.project-card h3 {
+  font-family: var(--font-newsreader), serif;
+  font-size: clamp(22px, 2vw, 26px);
+  font-weight: 400;
+  line-height: 1.15;
+  color: #1C1814;
+  margin: 0 0 12px 0;
+  padding-right: 32px;
+  transition: color 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+.project-card:hover h3 {
+  color: #9E5C3D;
+}
+.project-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.52;
+  color: #57503F;
+}
+.project-card-static {
+  cursor: default;
+}
+.project-card-static:hover {
+  background: rgba(28, 24, 20, 0.02);
+  border-color: rgba(28, 24, 20, 0.08);
+  transform: none;
+}
+
+
