@@ -25,8 +25,13 @@ export async function POST(request: Request) {
     return Response.json({ error: "Quote must be 10-2000 characters" }, { status: 400 });
   }
 
-  const sql = neon(process.env.DATABASE_URL!);
-  await sql`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, name TEXT NOT NULL, org TEXT, quote TEXT NOT NULL, approved BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())`;
-  await sql`INSERT INTO testimonials (name, org, quote) VALUES (${name.trim()}, ${org ? String(org).slice(0, 200) : null}, ${quote.trim()})`;
-  return Response.json({ ok: true });
+  try {
+    const sql = neon(process.env.DATABASE_URL!);
+    await sql`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, name TEXT NOT NULL, org TEXT, quote TEXT NOT NULL, approved BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())`;
+    await sql`INSERT INTO testimonials (name, org, quote) VALUES (${name.trim()}, ${org ? String(org).slice(0, 200) : null}, ${quote.trim()})`;
+    return Response.json({ ok: true });
+  } catch (err) {
+    console.error("Testimonial insert error:", err);
+    return Response.json({ error: "Database error" }, { status: 500 });
+  }
 }

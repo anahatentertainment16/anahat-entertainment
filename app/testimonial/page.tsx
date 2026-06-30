@@ -10,18 +10,22 @@ export default function TestimonialPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    const fd = new FormData(e.currentTarget);
-    const res = await fetch("/api/testimonials", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: fd.get("name"),
-        org: fd.get("org"),
-        quote: fd.get("quote"),
-      }),
-    });
-    if (res.ok) setSent(true);
-    else setError("Something went wrong. Please try again.");
+    try {
+      const fd = new FormData(e.currentTarget);
+      const res = await fetch("/api/testimonials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fd.get("name"),
+          org: fd.get("org"),
+          quote: fd.get("quote"),
+        }),
+      });
+      if (res.ok) setSent(true);
+      else setError("Something went wrong. Please try again.");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    }
   }
 
   return (
