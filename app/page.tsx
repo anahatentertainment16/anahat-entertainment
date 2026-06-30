@@ -360,7 +360,7 @@ export default function Home() {
         <a href="#contact" className="nav-mobile-cta" onClick={handleMenuClose}>Start a project</a>
         <div className="nav-mobile-meta">
           <span>Pune, India</span>
-          <a href="mailto:hello@anahat.studio">hello@anahat.studio</a>
+          <a href="mailto:ashutoshswamy397@gmail.com">ashutoshswamy397@gmail.com</a>
         </div>
       </div>
 
@@ -699,8 +699,8 @@ export default function Home() {
                 <h2 style={{ margin: "0 0 clamp(28px,5vh,44px)", fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(34px,5vw,76px)", lineHeight: 1.0, letterSpacing: "-0.025em", color: "#F1ECE1" }}>
                   Let&rsquo;s make something that <em style={{ fontStyle: "italic", color: "#C99A7F" }}>resonates.</em>
                 </h2>
-                <a href="mailto:hello@anahat.studio" data-hover className="contact-email-link">
-                  hello@anahat.studio
+                <a href="mailto:ashutoshswamy397@gmail.com" data-hover className="contact-email-link">
+                  ashutoshswamy397@gmail.com
                 </a>
               </div>
 
@@ -790,10 +790,10 @@ export default function Home() {
               </div>
               <div>
                 <p style={{ margin: "0 0 22px", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(241,236,225,0.4)" }}>Say hello</p>
-                <a href="mailto:hello@anahat.studio" data-hover style={{ textDecoration: "none", fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(16px,1.4vw,20px)", color: "#C99A7F", display: "block", marginBottom: 20, transition: "opacity .3s ease", lineHeight: 1.3 }}
+                <a href="mailto:ashutoshswamy397@gmail.com" data-hover style={{ textDecoration: "none", fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(16px,1.4vw,20px)", color: "#C99A7F", display: "block", marginBottom: 20, transition: "opacity .3s ease", lineHeight: 1.3 }}
                   onMouseEnter={e => (e.currentTarget.style.opacity = "0.7")}
                   onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-                >hello@anahat.studio</a>
+                >ashutoshswamy397@gmail.com</a>
                 <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "rgba(241,236,225,0.45)" }}>Pune, India<br />Available worldwide</p>
               </div>
             </div>
