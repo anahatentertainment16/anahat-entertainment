@@ -59,7 +59,7 @@ export default function TestimonialPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 30 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 30 }}>
+            <div className="form-name-email" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 30 }}>
               <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Name</span>
                 <input name="name" type="text" required className="form-input" />

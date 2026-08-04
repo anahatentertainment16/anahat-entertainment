@@ -12,11 +12,104 @@ import { InertiaPlugin } from "gsap/InertiaPlugin";
 
 type Testimonial = { id: number; name: string; org: string | null; quote: string };
 
+type Project = { title: string; link: string | null; tag: string; desc: string };
+
+const PROJECTS: Project[] = [
+  {
+    title: "Resonance Jam Room",
+    link: "https://resonancejamroom.in",
+    tag: "Web Application",
+    desc: "A custom real-time booking and scheduling system for rehearsal rooms, built to streamline studio workflows and online payments."
+  },
+  {
+    title: "Ghardaar24 Real Estate",
+    link: "https://ghardaar24.com",
+    tag: "Real Estate Portal",
+    desc: "A premium listing and property search platform featuring high-fidelity interactive filtering, maps, and seamless lead management."
+  },
+  {
+    title: "Rajeshwari Pawar Portfolio",
+    link: "https://rajeshwaripawar.com",
+    tag: "Portfolio Showcase",
+    desc: "An immersive, media-rich portfolio website designed for a creative professional, showcasing visual storytelling and interactive galleries."
+  },
+  {
+    title: "Mohammad Ayaz Sheikh Portfolio",
+    link: "https://mohammadayaz.com",
+    tag: "Portfolio Showcase",
+    desc: "A minimalist digital portfolio showcase featuring fluid custom page transitions, focusing on project case studies and clean typography."
+  },
+  {
+    title: "Bluenture LLP",
+    link: "https://blueturellp.com",
+    tag: "Corporate Website",
+    desc: "A professional web experience designed to establish digital authority, showcase B2B services, and drive corporate inquiries."
+  },
+  {
+    title: "Tantava Ethnic Wear Brand",
+    link: null,
+    tag: "Brand Experience",
+    desc: "A premium digital presence for an ethnic wear brand, capturing cultural heritage with contemporary web aesthetics."
+  },
+  {
+    title: "Gyan Setu Official Website",
+    link: null,
+    tag: "Educational Platform",
+    desc: "The digital gateway for an educational initiative, designed to provide accessible learning resources and facilitate community engagement."
+  }
+];
+
+// Deterministic "frequency" fingerprint per project — each has its own signal, echoing the resonance thesis.
+function freqPattern(seed: string, count = 22): number[] {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const bars: number[] = [];
+  for (let i = 0; i < count; i++) {
+    h = (h * 1103515245 + 12345) >>> 0;
+    bars.push(14 + (h % 1000) / 1000 * 50);
+  }
+  return bars;
+}
+
+function ProjectDetail({ project }: { project: Project }) {
+  const bars = freqPattern(project.title);
+  return (
+    <div key={project.title} className="project-detail-inner">
+      <span className="project-detail-tag">{project.tag}</span>
+      <h3 className="project-detail-title">{project.title}</h3>
+      <div className="project-freq" aria-hidden>
+        {bars.map((h, i) => (
+          <span key={i} className="project-freq-bar" style={{ height: `${h}px`, opacity: 0.35 + (i % 3) * 0.22 }} />
+        ))}
+      </div>
+      <p className="project-detail-desc">{project.desc}</p>
+      {project.link ? (
+        <a href={project.link} target="_blank" rel="noopener noreferrer" data-hover className="project-detail-link">
+          Visit site <span>&#8599;</span>
+        </a>
+      ) : (
+        <span className="project-detail-status">In development &mdash; case study coming soon.</span>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const [sent, setSent] = useState(false);
   const [contactError, setContactError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [expandedTestimonials, setExpandedTestimonials] = useState<Set<number>>(new Set());
+
+  const toggleTestimonial = (id: number) => {
+    setExpandedTestimonials((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const [activeProject, setActiveProject] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuTlRef = useRef<gsap.core.Timeline | null>(null);
 
@@ -351,9 +444,6 @@ export default function Home() {
 
       {/* MOBILE MENU — GSAP-controlled, always in DOM */}
       <div ref={menuRef} className="nav-mobile-menu">
-        <button className="nav-mobile-close" aria-label="Close menu" onClick={handleMenuClose}>
-          <span /><span />
-        </button>
         {["Services", "Projects", "Studio", "Voices"].map((l) => (
           <a key={l} href={`#${l.toLowerCase()}`} className="nav-mobile-link" onClick={handleMenuClose}>{l}</a>
         ))}
@@ -509,71 +599,34 @@ export default function Home() {
               </h2>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
-              {[
-                {
-                  title: "Resonance Jam Room",
-                  link: "https://resonancejamroom.in",
-                  tag: "Web Application",
-                  desc: "A custom real-time booking and scheduling system for rehearsal rooms, built to streamline studio workflows and online payments."
-                },
-                {
-                  title: "Ghardaar24 Real Estate",
-                  link: "https://ghardaar24.com",
-                  tag: "Real Estate Portal",
-                  desc: "A premium listing and property search platform featuring high-fidelity interactive filtering, maps, and seamless lead management."
-                },
-                {
-                  title: "Rajeshwari Pawar Portfolio",
-                  link: "https://rajeshwaripawar.com",
-                  tag: "Portfolio Showcase",
-                  desc: "An immersive, media-rich portfolio website designed for a creative professional, showcasing visual storytelling and interactive galleries."
-                },
-                {
-                  title: "Mohammad Ayaz Sheikh Portfolio",
-                  link: "https://mohammadayaz.com",
-                  tag: "Portfolio Showcase",
-                  desc: "A minimalist digital portfolio showcase featuring fluid custom page transitions, focusing on project case studies and clean typography."
-                },
-                {
-                  title: "Bluenture LLP",
-                  link: "https://blueturellp.com",
-                  tag: "Corporate Website",
-                  desc: "A professional web experience designed to establish digital authority, showcase B2B services, and drive corporate inquiries."
-                },
-                {
-                  title: "Tantava Ethnic Wear Brand",
-                  link: null,
-                  tag: "Brand Experience",
-                  desc: "A premium digital presence for an ethnic wear brand, capturing cultural heritage with contemporary web aesthetics."
-                },
-                {
-                  title: "Gyan Setu Official Website",
-                  link: null,
-                  tag: "Educational Platform",
-                  desc: "The digital gateway for an educational initiative, designed to provide accessible learning resources and facilitate community engagement."
-                }
-              ].map((proj, idx) => {
-                const Card = proj.link ? "a" : "div";
-                const cardProps = proj.link
-                  ? { href: proj.link, target: "_blank", rel: "noopener noreferrer", className: "project-card" }
-                  : { className: "project-card project-card-static" };
-
-                return (
-                  <Card key={idx} {...cardProps} data-hover={proj.link ? "" : undefined} data-reveal>
-                    <div>
-                      <span className="project-card-tag">{proj.tag}</span>
-                      <h3>{proj.title}</h3>
-                      <p>{proj.desc}</p>
-                    </div>
-                    {proj.link ? (
-                      <span className="project-card-arrow">&#8599;</span>
-                    ) : (
-                      <span style={{ position: "absolute", top: 24, right: 24, fontFamily: "var(--font-jetbrains), monospace", fontSize: 10, letterSpacing: "0.05em", color: "rgba(28,24,20,0.3)", textTransform: "uppercase" }}>[Showcase]</span>
+            <div data-reveal className="projects-stage">
+              <div className="projects-list" role="tablist" aria-label="Selected work">
+                {PROJECTS.map((proj, idx) => (
+                  <div key={proj.title} className="project-row-wrap">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={idx === activeProject}
+                      data-hover
+                      className={`project-row${idx === activeProject ? " active" : ""}`}
+                      onClick={() => setActiveProject(idx)}
+                      onMouseEnter={() => setActiveProject(idx)}
+                    >
+                      <span className="project-row-num">{String(idx + 1).padStart(2, "0")}</span>
+                      <span className="project-row-title">{proj.title}</span>
+                      <span className="project-row-tag">{proj.tag}</span>
+                    </button>
+                    {idx === activeProject && (
+                      <div className="project-detail-inline">
+                        <ProjectDetail project={proj} />
+                      </div>
                     )}
-                  </Card>
-                );
-              })}
+                  </div>
+                ))}
+              </div>
+              <div className="project-detail-desktop">
+                <ProjectDetail project={PROJECTS[activeProject]} />
+              </div>
             </div>
           </div>
         </section>
@@ -608,31 +661,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* TEAM */}
-            <div data-reveal style={{ marginTop: "clamp(64px,10vh,120px)" }}>
-              <span style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#C99A7F", marginBottom: "clamp(26px,4vh,44px)" }}>(Team)</span>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "clamp(36px,6vw,72px)" }}>
-                {[
-                  {
-                    name: "Atharva Kshirsagar",
-                    role: "Social Media / Content / Branding",
-                    desc: "Leads our creative direction for social channels, original content, and brand design. Atharva shapes the voice, visual identity, and social narratives that help brands find their cultural resonance."
-                  },
-                  {
-                    name: "Ashutosh Swamy",
-                    role: "Website / AI Partnerships",
-                    desc: "Directs our engineering, web architecture, and AI integrations. Ashutosh builds premium interactive web applications and structures technology partnerships that scale and leverage next-gen tools."
-                  }
-                ].map((member, index) => (
-                  <div key={index} className="team-member" style={{ display: "flex", flexDirection: "column" }}>
-                    <h4 style={{ margin: "0 0 8px", fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(24px,3vw,38px)", color: "#F1ECE1", fontStyle: "italic" }}>{member.name}</h4>
-                    <span style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#C99A7F", marginBottom: 18 }}>{member.role}</span>
-                    <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: "rgba(241,236,225,0.72)" }}>{member.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
           </div>
         </section>
 
@@ -656,31 +684,69 @@ export default function Home() {
                   className="testimonials-track"
                   style={{ display: "flex", gap: "clamp(14px,2vw,24px)", paddingBottom: 2 }}
                 >
-                  {testimonials.map((q) => (
-                    <div
-                      key={q.id}
-                      className="testimonial-card"
-                      style={{
-                        width: "clamp(280px,42vw,600px)",
-                        flexShrink: 0,
-                        padding: "clamp(28px,3.5vw,48px)",
-                        border: "1px solid rgba(28,24,20,0.14)",
-                        borderRadius: 12,
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
-                        gap: 28,
-                      }}
-                    >
-                      <p style={{ margin: 0, fontFamily: "var(--font-newsreader), serif", fontWeight: 300, fontSize: "clamp(19px,2.1vw,30px)", lineHeight: 1.25, letterSpacing: "-0.015em", color: "#1C1814" }}>
-                        &ldquo;{q.quote}&rdquo;
-                      </p>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1814", marginBottom: 4 }}>{q.name}</div>
-                        {q.org && <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#57503F" }}>{q.org}</div>}
+                  {testimonials.map((q) => {
+                    const expanded = expandedTestimonials.has(q.id);
+                    const isLong = q.quote.length > 220;
+                    return (
+                      <div
+                        key={q.id}
+                        className="testimonial-card"
+                        style={{
+                          width: "clamp(280px,42vw,600px)",
+                          flexShrink: 0,
+                          padding: "clamp(28px,3.5vw,48px)",
+                          border: "1px solid rgba(28,24,20,0.14)",
+                          borderRadius: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          gap: 20,
+                        }}
+                      >
+                        <p
+                          style={{
+                            margin: 0,
+                            fontFamily: "var(--font-newsreader), serif",
+                            fontWeight: 300,
+                            fontSize: "clamp(19px,2.1vw,30px)",
+                            lineHeight: 1.25,
+                            letterSpacing: "-0.015em",
+                            color: "#1C1814",
+                            ...(expanded
+                              ? {}
+                              : { display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }),
+                          }}
+                        >
+                          &ldquo;{q.quote}&rdquo;
+                        </p>
+                        {isLong && (
+                          <button
+                            type="button"
+                            data-hover
+                            onClick={() => toggleTestimonial(q.id)}
+                            style={{
+                              alignSelf: "flex-start",
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              fontFamily: "var(--font-jetbrains), monospace",
+                              fontSize: 11,
+                              letterSpacing: "0.1em",
+                              textTransform: "uppercase",
+                              color: "#9E5C3D",
+                            }}
+                          >
+                            {expanded ? "Show less" : "Read more"}
+                          </button>
+                        )}
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1814", marginBottom: 4 }}>{q.name}</div>
+                          {q.org && <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#57503F" }}>{q.org}</div>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

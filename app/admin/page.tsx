@@ -28,9 +28,11 @@ async function getData() {
       sql`SELECT * FROM inquiries ORDER BY created_at DESC`,
       sql`SELECT * FROM testimonials ORDER BY approved ASC, created_at DESC`,
     ]);
-    return { inquiries: inquiries as Inquiry[], testimonials: testimonials as Testimonial[] };
-  } catch {
-    return { inquiries: [], testimonials: [] };
+    return { inquiries: inquiries as Inquiry[], testimonials: testimonials as Testimonial[], error: null };
+  } catch (err) {
+    console.error("Admin getData failed:", err);
+    const error = err instanceof Error ? err.message : "Unknown database error";
+    return { inquiries: [], testimonials: [], error };
   }
 }
 
@@ -52,7 +54,7 @@ const cell: React.CSSProperties = { padding: "14px 16px 14px 0", fontSize: 13 };
 const th: React.CSSProperties = { textAlign: "left", padding: "10px 16px 10px 0", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#C99A7F", fontWeight: 400, whiteSpace: "nowrap" };
 
 export default async function AdminPage() {
-  const { inquiries, testimonials } = await getData();
+  const { inquiries, testimonials, error } = await getData();
   const pending = testimonials.filter((t) => !t.approved);
   const approved = testimonials.filter((t) => t.approved);
 
@@ -68,6 +70,12 @@ export default async function AdminPage() {
           </div>
           <LogoutButton />
         </div>
+
+        {error && (
+          <div style={{ marginBottom: "clamp(40px,6vh,64px)", padding: "16px 20px", border: "1px solid rgba(201,124,93,0.4)", borderRadius: 8, background: "rgba(201,124,93,0.08)" }}>
+            <p style={{ margin: 0, fontSize: 13, color: "#C97C5D" }}>Database connection failed &mdash; inquiries and testimonials can&rsquo;t load. {error}</p>
+          </div>
+        )}
 
         {/* Inquiries */}
         <section style={{ marginBottom: "clamp(56px,9vh,96px)" }}>
