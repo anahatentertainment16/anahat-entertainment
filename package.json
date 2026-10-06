@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "figures": "sh hairline/build.sh"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.1.0",
+    "@clerk/nextjs": "^7.9.11",
+    "@supabase/supabase-js": "^2.117.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",

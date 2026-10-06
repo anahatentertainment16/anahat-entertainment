@@ -1,68 +1,77 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowRight, CircleAlert, CircleCheck } from "lucide-react";
 
-type Service = { title: string; n: string };
-
-export default function InquiryForm({ service }: { service: Service }) {
+// Colors inherit from the parent, so the same form works on paper and on the accent panel.
+export default function InquiryForm({ service }: { service: { title: string } }) {
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    setBusy(true);
     const fd = new FormData(e.currentTarget);
-    const res = await fetch("/api/inquiries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service: service.title,
-        name: fd.get("name"),
-        email: fd.get("email"),
-        company: fd.get("company"),
-        message: fd.get("message"),
-      }),
-    });
-    if (res.ok) setSent(true);
-    else setError("Something went wrong. Please try again.");
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service: service.title,
+          name: fd.get("name"),
+          email: fd.get("email"),
+          company: fd.get("company"),
+          message: fd.get("message"),
+          website: fd.get("website"),
+        }),
+      });
+      if (res.ok) setSent(true);
+      else setError("Your message didn't send. Check your connection and try again.");
+    } catch {
+      setError("Your message didn't send. Check your connection and try again.");
+    }
+    setBusy(false);
   }
 
   if (sent) {
     return (
-      <div>
-        <div style={{ fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(26px,3vw,38px)", lineHeight: 1.1, color: "#F1ECE1", marginBottom: 14 }}>
-          Thank you, <em style={{ fontStyle: "italic", color: "#C99A7F" }}>message received.</em>
-        </div>
-        <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "rgba(241,236,225,0.7)" }}>
-          We read everything ourselves and reply within two working days. Talk soon.
-        </p>
+      <div role="status">
+        <p className="m-0 mb-3 flex items-center gap-3 font-display text-3xl font-semibold tracking-tight md:text-4xl"><CircleCheck size={32} /> Message sent.</p>
+        <p className="m-0 text-base leading-relaxed opacity-80">We read every message ourselves and reply within two working days.</p>
       </div>
     );
   }
 
+  const label = "flex flex-col gap-2";
+  const cap = "font-mono text-xs uppercase tracking-[0.12em] opacity-80";
+
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 30 }}>
-      <div className="form-name-email" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 30 }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-          <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Name</span>
-          <input name="name" type="text" required className="form-input" />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+      {/* Honeypot: hidden from people, filled by bots */}
+      <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] h-px w-px opacity-0" />
+      <div className="grid grid-cols-1 gap-7 sm:grid-cols-2">
+        <label className={label}>
+          <span className={cap}>Name</span>
+          <input name="name" type="text" required autoComplete="name" className="field" />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-          <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Email</span>
-          <input name="email" type="email" required className="form-input" />
+        <label className={label}>
+          <span className={cap}>Email</span>
+          <input name="email" type="email" required autoComplete="email" className="field" />
         </label>
       </div>
-      <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Company</span>
-        <input name="company" type="text" className="form-input" />
+      <label className={label}>
+        <span className={cap}>Company</span>
+        <input name="company" type="text" autoComplete="organization" className="field" />
       </label>
-      <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Tell us about the project</span>
-        <textarea name="message" rows={4} className="form-textarea" />
+      <label className={label}>
+        <span className={cap}>Tell us about the project</span>
+        <textarea name="message" rows={4} className="field" />
       </label>
-      {error && <p style={{ margin: 0, color: "#C99A7F", fontSize: 14 }}>{error}</p>}
-      <button type="submit" className="submit-btn">
-        Send inquiry <span style={{ fontSize: 15 }}>&rarr;</span>
+      {error && <p role="alert" className="m-0 flex items-center gap-2 text-sm font-medium"><CircleAlert size={16} /> {error}</p>}
+      <button type="submit" disabled={busy} className="btn btn-solid self-start disabled:opacity-60">
+        {busy ? "Sending..." : "Send message"} <ArrowRight size={18} />
       </button>
     </form>
   );

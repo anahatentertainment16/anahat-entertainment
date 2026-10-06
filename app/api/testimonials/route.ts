@@ -1,19 +1,21 @@
-import { neon } from "@neondatabase/serverless";
+import { supabase } from "@/lib/supabase";
 
 export async function GET() {
-  try {
-    const sql = neon(process.env.DATABASE_URL!);
-    await sql`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, name TEXT NOT NULL, org TEXT, quote TEXT NOT NULL, approved BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())`;
-    const rows = await sql`SELECT id, name, org, quote FROM testimonials WHERE approved = TRUE ORDER BY created_at DESC`;
-    return Response.json(rows);
-  } catch {
-    return Response.json([]);
-  }
+  const { data, error } = await supabase
+    .from("testimonials")
+    .select("id, name, org, quote")
+    .eq("approved", true)
+    .order("created_at", { ascending: false });
+  if (error) console.error("Testimonials load error:", error.message);
+  return Response.json(data ?? []);
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { name, org, quote } = body;
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return Response.json({ error: "Invalid request" }, { status: 400 });
+  const { name, org, quote, website } = body;
+  // Honeypot: hidden field real visitors never fill. Pretend success so bots don't retry.
+  if (website) return Response.json({ ok: true });
 
   if (!name || !quote) {
     return Response.json({ error: "Missing required fields" }, { status: 400 });
@@ -25,13 +27,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Quote must be 10-2000 characters" }, { status: 400 });
   }
 
-  try {
-    const sql = neon(process.env.DATABASE_URL!);
-    await sql`CREATE TABLE IF NOT EXISTS testimonials (id SERIAL PRIMARY KEY, name TEXT NOT NULL, org TEXT, quote TEXT NOT NULL, approved BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW())`;
-    await sql`INSERT INTO testimonials (name, org, quote) VALUES (${name.trim()}, ${org ? String(org).slice(0, 200) : null}, ${quote.trim()})`;
-    return Response.json({ ok: true });
-  } catch (err) {
-    console.error("Testimonial insert error:", err);
+  const { error } = await supabase
+    .from("testimonials")
+    .insert({ name: name.trim(), org: org ? String(org).slice(0, 200) : null, quote: quote.trim() });
+  if (error) {
+    console.error("Testimonial insert error:", error.message);
     return Response.json({ error: "Database error" }, { status: 500 });
   }
+  return Response.json({ ok: true });
 }

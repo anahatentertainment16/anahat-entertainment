@@ -1,4 +1,8 @@
-export const services = [
+import { BedDouble, CalendarCheck, Contact, GraduationCap, ReceiptText, ScanBarcode, ShoppingBag, Stethoscope, UtensilsCrossed, Wallet, type LucideIcon } from "lucide-react";
+
+type Service = { n: string; slug: string; title: string; blurb: string; includes?: { label: string; icon: LucideIcon }[] };
+
+export const services: Service[] = [
   {
     n: "01",
     slug: "advertising-branded-content",
@@ -22,5 +26,23 @@ export const services = [
     slug: "social-media",
     title: "Social Media",
     blurb: "Always-on storytelling that compounds. Channels, content engines, and community that turn audiences into advocates.",
+  },
+  {
+    n: "05",
+    slug: "custom-software",
+    title: "Custom Software",
+    blurb: "Business software built around how you actually work, from the first booking to the final invoice. Yours to own, no per-seat fees.",
+    includes: [
+      { label: "Custom CRMs", icon: Contact },
+      { label: "Booking & scheduling", icon: CalendarCheck },
+      { label: "E-commerce stores", icon: ShoppingBag },
+      { label: "Hotel management", icon: BedDouble },
+      { label: "Invoicing & billing", icon: ReceiptText },
+      { label: "Restaurant management", icon: UtensilsCrossed },
+      { label: "Inventory & POS", icon: ScanBarcode },
+      { label: "School & coaching", icon: GraduationCap },
+      { label: "Clinic appointments", icon: Stethoscope },
+      { label: "HR & payroll", icon: Wallet },
+    ],
   },
 ];

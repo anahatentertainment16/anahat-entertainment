@@ -1,387 +1,171 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { EMAIL, WRAP } from "@/lib/site";
+import Image from "next/image";
 import { services } from "@/lib/services";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
-import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import { Draggable } from "gsap/Draggable";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
+import HeroScene from "./HeroScene";
+import Navbar from "./Navbar";
+import Loader from "./Loader";
+import { siteReady } from "./ready";
+import Hairline from "./Hairline";
+import InquiryForm from "./services/[slug]/InquiryForm";
+import { ArrowRight, ArrowUp, ArrowUpRight, ChevronDown, Clock, Mail, MapPin } from "lucide-react";
 
 type Testimonial = { id: number; name: string; org: string | null; quote: string };
 
-type Project = { title: string; link: string | null; tag: string; desc: string };
+export type Project = { id: number; title: string; link: string | null; tag: string; description: string; image_url: string | null };
+export type Member = { id: number; name: string; role: string; link: string | null; photo_url: string | null };
 
-const PROJECTS: Project[] = [
-  {
-    title: "Resonance Jam Room",
-    link: "https://resonancejamroom.in",
-    tag: "Web Application",
-    desc: "A custom real-time booking and scheduling system for rehearsal rooms, built to streamline studio workflows and online payments."
-  },
-  {
-    title: "Ghardaar24 Real Estate",
-    link: "https://ghardaar24.com",
-    tag: "Real Estate Portal",
-    desc: "A premium listing and property search platform featuring high-fidelity interactive filtering, maps, and seamless lead management."
-  },
-  {
-    title: "Rajeshwari Pawar Portfolio",
-    link: "https://rajeshwaripawar.com",
-    tag: "Portfolio Showcase",
-    desc: "An immersive, media-rich portfolio website designed for a creative professional, showcasing visual storytelling and interactive galleries."
-  },
-  {
-    title: "Mohammad Ayaz Sheikh Portfolio",
-    link: "https://mohammadayaz.com",
-    tag: "Portfolio Showcase",
-    desc: "A minimalist digital portfolio showcase featuring fluid custom page transitions, focusing on project case studies and clean typography."
-  },
-  {
-    title: "Bluenture LLP",
-    link: "https://blueturellp.com",
-    tag: "Corporate Website",
-    desc: "A professional web experience designed to establish digital authority, showcase B2B services, and drive corporate inquiries."
-  },
-  {
-    title: "Tantava Ethnic Wear Brand",
-    link: null,
-    tag: "Brand Experience",
-    desc: "A premium digital presence for an ethnic wear brand, capturing cultural heritage with contemporary web aesthetics."
-  },
-  {
-    title: "Gyan Setu Official Website",
-    link: null,
-    tag: "Educational Platform",
-    desc: "The digital gateway for an educational initiative, designed to provide accessible learning resources and facilitate community engagement."
-  }
-];
+const NAV = ["Services", "Projects", "Studio", "Voices"];
 
-// Deterministic "frequency" fingerprint per project — each has its own signal, echoing the resonance thesis.
+// Deterministic "frequency" fingerprint per title: each project and service has its own signal.
 function freqPattern(seed: string, count = 22): number[] {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const bars: number[] = [];
   for (let i = 0; i < count; i++) {
     h = (h * 1103515245 + 12345) >>> 0;
-    bars.push(14 + (h % 1000) / 1000 * 50);
+    bars.push(14 + ((h % 1000) / 1000) * 50);
   }
   return bars;
 }
 
-function ProjectDetail({ project }: { project: Project }) {
-  const bars = freqPattern(project.title);
+function Freq({ seed, count, className = "" }: { seed: string; count?: number; className?: string }) {
   return (
-    <div key={project.title} className="project-detail-inner">
-      <span className="project-detail-tag">{project.tag}</span>
-      <h3 className="project-detail-title">{project.title}</h3>
-      <div className="project-freq" aria-hidden>
-        {bars.map((h, i) => (
-          <span key={i} className="project-freq-bar" style={{ height: `${h}px`, opacity: 0.35 + (i % 3) * 0.22 }} />
-        ))}
-      </div>
-      <p className="project-detail-desc">{project.desc}</p>
+    <div aria-hidden className={`flex h-16 items-end gap-[3px] ${className}`}>
+      {freqPattern(seed, count).map((h, i) => (
+        <span key={i} className="w-[3px] rounded-full bg-current" style={{ height: h, opacity: 0.35 + (i % 3) * 0.22 }} />
+      ))}
+    </div>
+  );
+}
+
+// Services grid: span, tone and figure per discipline. --hairline-plate must match the cell background.
+const DISCIPLINES: Record<string, { cell: string; wide: boolean; figure: React.ReactNode }> = {
+  "advertising-branded-content": {
+    cell: "bg-accent text-on-accent md:col-span-7 [--hairline-plate:var(--accent)]",
+    wide: true,
+    figure: <Hairline name="ovation" label="A cinema audience facing the screen, people standing up from their seats" />,
+  },
+  "web-development": {
+    cell: "bg-surface text-ink md:col-span-5 [--hairline-plate:var(--surface)]",
+    wide: false,
+    figure: <Hairline name="layout" label="A web page laid flat in its window, its blocks lifting off the page" />,
+  },
+  "ai-partnerships": {
+    cell: "bg-ink text-paper md:col-span-5 [--hairline-plate:var(--ink)]",
+    wide: false,
+    figure: <Hairline name="layers" label="A model as a stack of plates, noise at the bottom settling into a ring at the top" />,
+  },
+  "social-media": {
+    cell: "border border-line text-ink md:col-span-7 [--hairline-plate:var(--paper)]",
+    wide: true,
+    figure: <Hairline name="ripple" label="A phone's grid of posts, one lifting and the lift spreading to its neighbours" />,
+  },
+  // Full-width row: a laptop lid opening, code writing itself until it ships.
+  "custom-software": {
+    cell: "bg-surface text-ink md:col-span-12 md:flex-row-reverse md:items-center md:gap-12 [--hairline-plate:var(--surface)]",
+    wide: true,
+    figure: <Hairline name="hinge" label="A laptop lid opening, code writing itself across the screen until it ships" />,
+  },
+};
+
+function ProjectDetail({ project }: { project: Project }) {
+  return (
+    <div key={project.title} className="project-detail-inner flex flex-col items-start gap-2">
+      <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{project.tag}</span>
+      <h3 className="m-0 mt-1 font-display text-3xl font-semibold leading-[1.05] tracking-tight md:text-4xl">{project.title}</h3>
+      <Freq seed={project.title} className="my-3 text-accent" />
+      {project.image_url && (
+        <Image
+          src={project.image_url}
+          alt={project.title}
+          width={960}
+          height={600}
+          sizes="(max-width: 900px) 100vw, 50vw"
+          className="mb-4 h-auto w-full max-w-[560px] rounded-xl"
+        />
+      )}
+      <p className="m-0 mb-5 max-w-[52ch] text-[15px] leading-relaxed text-muted">{project.description}</p>
       {project.link ? (
-        <a href={project.link} target="_blank" rel="noopener noreferrer" data-hover className="project-detail-link">
-          Visit site <span>&#8599;</span>
+        <a href={project.link} target="_blank" rel="noopener noreferrer" className="u-link inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.08em] text-ink">
+          Visit site <ArrowUpRight size={14} />
         </a>
       ) : (
-        <span className="project-detail-status">In development &mdash; case study coming soon.</span>
+        <span className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.08em] text-muted"><Clock size={14} /> In development. Case study coming soon.</span>
       )}
     </div>
   );
 }
 
-export default function Home() {
-  const [sent, setSent] = useState(false);
-  const [contactError, setContactError] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [expandedTestimonials, setExpandedTestimonials] = useState<Set<number>>(new Set());
+export default function Home({ projects, team }: { projects: Project[]; team: Member[] }) {
+  const [testimonials, setTestimonials] = useState<Testimonial[] | null>(null);
+  // Team and Voices links only show once their sections have something to show.
+  const nav = (team.length ? [...NAV.slice(0, 3), "Team", NAV[3]] : NAV).filter((l) => l !== "Voices" || testimonials?.length);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [activeProject, setActiveProject] = useState(0);
 
-  const toggleTestimonial = (id: number) => {
-    setExpandedTestimonials((prev) => {
+  const toggleTestimonial = (id: number) =>
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
-  const [activeProject, setActiveProject] = useState(0);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuTlRef = useRef<gsap.core.Timeline | null>(null);
 
   useEffect(() => {
-    fetch("/api/testimonials").then((r) => r.json()).then(setTestimonials).catch(() => {});
+    fetch("/api/testimonials").then((r) => r.json()).then(setTestimonials).catch(() => setTestimonials([]));
   }, []);
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger, SplitText, MotionPathPlugin, Draggable, InertiaPlugin);
-
+    gsap.registerPlugin(ScrollTrigger, SplitText, Draggable, InertiaPlugin);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const splits: SplitText[] = [];
 
     const ctx = gsap.context(() => {
+      if (reduce) return;
 
-      // ── HERO TIMELINE ──────────────────────────────────────────────────
-      const heroTl = gsap.timeline({ defaults: { ease: "power4.out" } });
+      // Hero: lines rise in, then the rest settles.
+      const heroTl = gsap.timeline({ paused: true, defaults: { ease: "power4.out" } });
+      siteReady.then(() => heroTl.play());
       heroTl
-        .from(".ah-nav", { y: -28, opacity: 0, duration: 0.9, ease: "power3.out" }, 0)
-        .from(".hero-label", { opacity: 0, y: 22, duration: 0.9 }, 0.1)
-        .from(".hero-line-inner", { yPercent: 115, duration: 1.2, stagger: 0.14 }, 0.2)
-        .from(".hero-desc", { opacity: 0, y: 28, duration: 1 }, 0.72)
-        .from(".hero-cta-group", { opacity: 0, y: 22, duration: 0.9 }, 0.88)
-        .from(".hero-deco-ring", { opacity: 0, scale: 0.72, duration: 1.4, ease: "power3.out" }, 0.0);
+        .from(".hero-line", { yPercent: 110, duration: 1.15, stagger: 0.12 }, 0.1)
+        .from(".hero-after", { opacity: 0, y: 20, duration: 0.9, stagger: 0.1 }, 0.6);
 
-      // ── HERO ORBIT (MotionPath) ────────────────────────────────────────
-      gsap.to(".orbit-dot", {
-        duration: 22,
-        repeat: -1,
-        ease: "none",
-        motionPath: { path: "#orbit-path", start: 0, end: 1 },
-      });
-      gsap.to(".orbit-dot", { opacity: 0.8, duration: 1.8, delay: 1.6, ease: "power2.out" });
-
-      // "resonate." char cascade — fires after line reveal completes
-      const resonateEl = document.querySelector(".hero-line-inner em") as HTMLElement | null;
-      if (resonateEl) {
-        const split = new SplitText(resonateEl, { type: "chars" });
-        splits.push(split);
-        gsap.set(split.chars, { display: "inline-block", opacity: 0, y: 14 });
-        heroTl.to(split.chars, { opacity: 1, y: 0, stagger: 0.035, duration: 0.52, ease: "power2.out" }, 1.58);
-      }
-
-      // ── SCROLL PROGRESS BAR ────────────────────────────────────────────
-      ScrollTrigger.create({
-        start: "top top",
-        end: "bottom bottom",
-        onUpdate: (self) => {
-          gsap.set("#scroll-progress", { scaleX: self.progress, transformOrigin: "left center" });
-        },
-      });
-
-      // ── SECTION LABEL char reveal ──────────────────────────────────────
-      const labelEls = Array.from(document.querySelectorAll("span")).filter(
-        (el) => /^\([A-Za-z\s]+\)$/.test(el.textContent?.trim() ?? "")
-      ) as HTMLElement[];
-      labelEls.forEach((el) => {
-        const split = new SplitText(el, { type: "chars" });
-        splits.push(split);
-        gsap.set(split.chars, { display: "inline-block" });
-        gsap.from(split.chars, {
-          opacity: 0, scale: 0.6, y: 8, stagger: 0.04, duration: 0.6, ease: "back.out(2)",
-          scrollTrigger: { trigger: el, start: "top 89%", once: true },
-        });
-      });
-
-      // ── GENERIC data-reveal ────────────────────────────────────────────
       gsap.utils.toArray<Element>("[data-reveal]").forEach((el) => {
-        // labels handled by SplitText above
-        if (/^\([A-Za-z\s]+\)$/.test(el.textContent?.trim() ?? "")) return;
-        gsap.fromTo(
-          el,
-          { opacity: 0, y: 42 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 1.15,
-            ease: "power3.out",
-            scrollTrigger: { trigger: el, start: "top 87%", once: true },
-          }
-        );
+        gsap.from(el, { opacity: 0, y: 36, duration: 1.1, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 87%", once: true } });
       });
 
-      // ── SERVICES h2 word reveal ────────────────────────────────────────
-      const servicesH2 = document.querySelector("#services h2") as HTMLElement | null;
-      if (servicesH2) {
-        const split = new SplitText(servicesH2, { type: "words" });
+      // Manifesto reads itself in as you scroll.
+      const manifesto = document.querySelector<HTMLElement>(".studio-manifesto");
+      if (manifesto) {
+        const split = new SplitText(manifesto, { type: "words" });
         splits.push(split);
-        gsap.set(split.words, { display: "inline-block" });
-        gsap.from(split.words, {
-          opacity: 0, y: 48, duration: 1.1, ease: "power4.out", stagger: 0.06,
-          scrollTrigger: { trigger: servicesH2, start: "top 82%", once: true },
+        gsap.fromTo(split.words, { opacity: 0.15 }, {
+          opacity: 1, stagger: 0.09, ease: "none",
+          scrollTrigger: { trigger: manifesto, start: "top 75%", end: "bottom 35%", scrub: 1 },
         });
       }
-
-      // ── SERVICE ROWS stagger batch ─────────────────────────────────────
-      ScrollTrigger.batch(".service-row", {
-        onEnter: (els) => {
-          gsap.fromTo(els, { opacity: 0, y: 38 }, {
-            opacity: 1, y: 0, duration: 1.05, ease: "power3.out", stagger: 0.11,
-          });
-        },
-        start: "top 88%",
-        once: true,
-      });
-
-      // ── STUDIO MANIFESTO word scrub ────────────────────────────────────
-      const manifestoEl = document.querySelector(".studio-manifesto") as HTMLElement | null;
-      if (manifestoEl) {
-        const split = new SplitText(manifestoEl, { type: "words" });
-        splits.push(split);
-        gsap.fromTo(
-          split.words,
-          { opacity: 0.15 },
-          {
-            opacity: 1,
-            stagger: { each: 0.09, from: "start" },
-            ease: "none",
-            scrollTrigger: { trigger: manifestoEl, start: "top 70%", end: "bottom 25%", scrub: 1.2 },
-          }
-        );
-      }
-
-      // ── CONTACT h2 word reveal ─────────────────────────────────────────
-      const contactH2 = document.querySelector("#contact h2") as HTMLElement | null;
-      if (contactH2) {
-        const split = new SplitText(contactH2, { type: "words" });
-        splits.push(split);
-        gsap.set(split.words, { display: "inline-block" });
-        gsap.from(split.words, {
-          opacity: 0, y: 60, duration: 1.3, ease: "power4.out", stagger: 0.08,
-          scrollTrigger: { trigger: contactH2, start: "top 85%", once: true },
-        });
-      }
-
-      // ── HERO PARALLAX (deco ring) ──────────────────────────────────────
-      gsap.to(".hero-deco-ring", {
-        yPercent: -45,
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#top",
-          start: "top top",
-          end: "80% top",
-          scrub: 1.8,
-        },
-      });
-
-      // ── HERO TEXT PARALLAX ─────────────────────────────────────────────
-      gsap.to(".hero-text-block", {
-        yPercent: -18,
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#top",
-          start: "top top",
-          end: "bottom top",
-          scrub: 1.2,
-        },
-      });
-
-      // ── MARQUEE: speed boost on scroll ────────────────────────────────
-      let marqSpeed = 32;
-      ScrollTrigger.create({
-        start: "top top",
-        end: "bottom bottom",
-        onUpdate: (self) => {
-          const v = Math.abs(self.getVelocity());
-          const target = Math.max(32, 32 - v * 0.012);
-          if (Math.abs(target - marqSpeed) > 0.5) {
-            marqSpeed = target;
-            (document.querySelector(".ah-marquee") as HTMLElement | null)
-              ?.style.setProperty("animation-duration", `${marqSpeed}s`);
-          }
-        },
-      });
-
-      // ── MAGNETIC BUTTONS ──────────────────────────────────────────────
-      gsap.utils.toArray<HTMLElement>("[data-magnetic]").forEach((el) => {
-        el.addEventListener("mousemove", (e: MouseEvent) => {
-          const r = el.getBoundingClientRect();
-          const x = e.clientX - r.left - r.width / 2;
-          const y = e.clientY - r.top - r.height / 2;
-          gsap.to(el, { x: x * 0.3, y: y * 0.3, duration: 0.45, ease: "power2.out" });
-        });
-        el.addEventListener("mouseleave", () => {
-          gsap.to(el, { x: 0, y: 0, duration: 0.9, ease: "elastic.out(1,0.35)" });
-        });
-      });
-
-    }); // end ctx
-
-    // ── MOBILE MENU TIMELINE ──────────────────────────────────────────
-    const menuEl = menuRef.current;
-    let menuTl: gsap.core.Timeline | null = null;
-    if (menuEl) {
-      gsap.set(menuEl, { clipPath: "inset(0 0 100% 0)", visibility: "hidden" });
-      menuTl = gsap.timeline({ paused: true })
-        .set(menuEl, { visibility: "visible" })
-        .to(menuEl, { clipPath: "inset(0 0 0% 0)", duration: 0.72, ease: "power4.inOut" })
-        .fromTo(
-          menuEl.querySelectorAll(".nav-mobile-link, .nav-mobile-cta, .nav-mobile-meta"),
-          { opacity: 0, y: 36 },
-          { opacity: 1, y: 0, duration: 0.55, stagger: 0.07, ease: "power3.out" },
-          "-=0.32"
-        );
-      menuTlRef.current = menuTl;
-    }
-
-    // ── CUSTOM CURSOR (outside ctx so it doesn't get reverted) ────────
-    const fine = window.matchMedia?.("(pointer:fine)").matches;
-    const ring = document.getElementById("ah-cursor-ring");
-    const dot = document.getElementById("ah-cursor-dot");
-    let cleanupCursor: (() => void) | null = null;
-
-    if (fine && ring && dot) {
-      document.documentElement.style.cursor = "none";
-
-      gsap.set(ring, { xPercent: -50, yPercent: -50, x: -100, y: -100 });
-      gsap.set(dot, { xPercent: -50, yPercent: -50, x: -100, y: -100 });
-
-      const xTo = gsap.quickTo(ring, "x", { duration: 0.55, ease: "power3" });
-      const yTo = gsap.quickTo(ring, "y", { duration: 0.55, ease: "power3" });
-
-      const onMove = (e: MouseEvent) => {
-        xTo(e.clientX);
-        yTo(e.clientY);
-        gsap.set(dot, { x: e.clientX, y: e.clientY });
-      };
-      window.addEventListener("mousemove", onMove);
-
-      const onEnter = () => {
-        gsap.to(ring, { scale: 2.3, duration: 0.4, ease: "power2.out" });
-        gsap.to(dot, { opacity: 0, duration: 0.25 });
-      };
-      const onLeave = () => {
-        gsap.to(ring, { scale: 1, duration: 0.4, ease: "power2.out" });
-        gsap.to(dot, { opacity: 1, duration: 0.25 });
-      };
-
-      const hoverEls = Array.from(document.querySelectorAll("[data-hover]"));
-      hoverEls.forEach((el) => {
-        el.addEventListener("mouseenter", onEnter);
-        el.addEventListener("mouseleave", onLeave);
-      });
-
-      cleanupCursor = () => {
-        window.removeEventListener("mousemove", onMove);
-        hoverEls.forEach((el) => {
-          el.removeEventListener("mouseenter", onEnter);
-          el.removeEventListener("mouseleave", onLeave);
-        });
-        document.documentElement.style.cursor = "";
-      };
-    } else if (ring && dot) {
-      ring.style.display = "none";
-      dot.style.display = "none";
-    }
+    });
 
     return () => {
       ctx.revert();
       splits.forEach((s) => s.revert());
-      ScrollTrigger.getAll().forEach((t) => t.kill());
-      menuTl?.kill();
-      menuTlRef.current = null;
-      cleanupCursor?.();
     };
   }, []);
 
   useEffect(() => {
-    if (!testimonials.length) return;
+    if (!testimonials?.length) return;
     const viewport = document.querySelector<HTMLElement>(".testimonials-viewport");
     const track = document.querySelector<HTMLElement>(".testimonials-track");
     if (!viewport || !track) return;
-
     const maxX = -(track.scrollWidth - viewport.offsetWidth);
     const [dragger] = Draggable.create(track, {
       type: "x",
@@ -391,491 +175,294 @@ export default function Home() {
       onPress() { viewport.style.cursor = "grabbing"; },
       onRelease() { viewport.style.cursor = "grab"; },
     });
-
     return () => { dragger.kill(); };
   }, [testimonials]);
 
-  const handleMenuToggle = () => {
-    const tl = menuTlRef.current;
-    setMenuOpen((o) => {
-      if (!o) tl?.play();
-      else tl?.reverse().then(() => gsap.set(menuRef.current, { visibility: "hidden" }));
-      return !o;
-    });
-  };
-
-  const handleMenuClose = () => {
-    menuTlRef.current?.reverse().then(() => gsap.set(menuRef.current, { visibility: "hidden" }));
-    setMenuOpen(false);
-  };
-
   return (
     <>
-      {/* SCROLL PROGRESS */}
-      <div
-        id="scroll-progress"
-        style={{
-          position: "fixed", top: 0, left: 0, right: 0, height: 2,
-          background: "#9E5C3D", zIndex: 200, transformOrigin: "left center",
-          transform: "scaleX(0)",
-        }}
-      />
+      <Loader />
 
-      {/* NAV */}
-      <nav className="ah-nav" style={{ position: "fixed", top: 0, left: 0, width: "100%", zIndex: 60, mixBlendMode: "difference", color: "#ffffff" }}>
-        <div style={{ maxWidth: 1320, margin: "0 auto", padding: "22px clamp(24px,6vw,110px)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <a href="#top" data-hover className="nav-logo">
-            Anahat Entertainment<span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 10, verticalAlign: "super", marginLeft: 3, letterSpacing: "0.1em" }}>&reg;</span>
-          </a>
-          <div className="nav-desktop-links" style={{ display: "flex", gap: 32, alignItems: "center" }}>
-            <a data-hover href="#services" className="nav-link">Services</a>
-            <a data-hover href="#projects" className="nav-link">Projects</a>
-            <a data-hover href="#studio" className="nav-link">Studio</a>
-            <a data-hover href="#voices" className="nav-link">Voices</a>
-            <a data-hover href="#contact" className="nav-cta">Start a project</a>
-          </div>
-          <button className={`nav-hamburger${menuOpen ? " open" : ""}`} aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={handleMenuToggle}>
-            <span />
-            <span />
-            <span />
-          </button>
-        </div>
-      </nav>
+      <Navbar items={nav} />
 
-      {/* MOBILE MENU — GSAP-controlled, always in DOM */}
-      <div ref={menuRef} className="nav-mobile-menu">
-        {["Services", "Projects", "Studio", "Voices"].map((l) => (
-          <a key={l} href={`#${l.toLowerCase()}`} className="nav-mobile-link" onClick={handleMenuClose}>{l}</a>
-        ))}
-        <a href="#contact" className="nav-mobile-cta" onClick={handleMenuClose}>Start a project</a>
-        <div className="nav-mobile-meta">
-          <span>Pune, India</span>
-          <a href="mailto:ashutoshswamy397@gmail.com">ashutoshswamy397@gmail.com</a>
-        </div>
-      </div>
-
-      <div id="top" style={{ position: "relative" }}>
-
-        {/* HERO */}
-        <section style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "150px 0 70px", overflow: "hidden" }}>
-
-          {/* Decorative ring — GSAP parallax target */}
-          <div
-            className="hero-deco-ring"
-            aria-hidden
-            style={{
-              position: "absolute",
-              right: "clamp(-120px,-8vw,-40px)",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: "clamp(320px,38vw,620px)",
-              height: "clamp(320px,38vw,620px)",
-              borderRadius: "50%",
-              border: "1px solid rgba(158,92,61,0.22)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            className="hero-deco-ring"
-            aria-hidden
-            style={{
-              position: "absolute",
-              right: "clamp(-80px,-4vw,-10px)",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: "clamp(200px,24vw,400px)",
-              height: "clamp(200px,24vw,400px)",
-              borderRadius: "50%",
-              border: "1px solid rgba(158,92,61,0.12)",
-              pointerEvents: "none",
-            }}
-          />
-
-          {/* ORBIT SVG — MotionPath track */}
-          <svg
-            aria-hidden
-            viewBox="0 0 100 100"
-            style={{
-              position: "absolute",
-              right: "clamp(-120px,-8vw,-40px)",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: "clamp(320px,38vw,620px)",
-              height: "clamp(320px,38vw,620px)",
-              overflow: "visible",
-              pointerEvents: "none",
-            }}
-          >
-            <path id="orbit-path" d="M 2,50 a 48,48 0 1,0 96,0 a 48,48 0 1,0 -96,0" fill="none" stroke="none" />
-            <circle className="orbit-dot" cx="2" cy="50" r="3.5" fill="#9E5C3D" style={{ opacity: 0 }} />
-          </svg>
-
-          <div className="hero-text-block" style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%", position: "relative", zIndex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "clamp(30px,5vh,66px)" }}>
-              <span className="hero-label" style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#57503F" }}>
-                Creative studio, Pune / Worldwide
-              </span>
-            </div>
-            <h1 style={{ margin: 0, fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(50px,9.6vw,172px)", lineHeight: 0.95, letterSpacing: "-0.025em", color: "#1C1814" }}>
-              <span style={{ display: "block", overflow: "hidden", paddingBottom: "0.04em" }}>
-                <span className="hero-line-inner" style={{ display: "block" }}>We make</span>
-              </span>
-              <span style={{ display: "block", overflow: "hidden", paddingBottom: "0.04em" }}>
-                <span className="hero-line-inner" style={{ display: "block" }}>
-                  brands <em style={{ fontStyle: "italic", color: "#9E5C3D" }}>resonate.</em>
-                </span>
-              </span>
-            </h1>
-            <div className="hero-cta-group" style={{ display: "flex", flexWrap: "wrap", gap: 40, alignItems: "flex-end", justifyContent: "space-between", marginTop: "clamp(30px,5vh,58px)" }}>
-              <p className="hero-desc" style={{ maxWidth: 560, margin: 0, fontSize: "clamp(16px,1.5vw,21px)", lineHeight: 1.5, color: "#57503F" }}>
-                Anahat Entertainment is a creative studio for advertising and branded content, web development, social, and the intelligent tools shaping what comes next.
+      <main id="top">
+        {/* HERO: split, headline left, illustrated scene right */}
+        <section className="flex min-h-[100dvh] items-center pb-10 pt-24 md:pb-14">
+          <div className={`${WRAP} grid items-center gap-10 lg:grid-cols-12 lg:gap-6`}>
+            <div className="lg:col-span-6">
+              <h1 className="m-0 font-display text-[clamp(44px,5.2vw,92px)] font-bold leading-[0.94] tracking-[-0.04em]">
+                <span className="block overflow-hidden pb-[0.06em]"><span className="hero-line block">We make brands</span></span>
+                <span className="block overflow-hidden pb-[0.06em]"><span className="hero-line block text-accent">resonate.</span></span>
+              </h1>
+              <p className="hero-after m-0 mt-7 max-w-[40ch] text-lg leading-relaxed text-muted md:mt-9 md:text-xl">
+                A creative studio for brand films, advertising, websites, custom software, social and AI. Based in Pune, working worldwide.
               </p>
-              <div style={{ display: "flex", gap: 14 }}>
-                <a href="#contact" data-hover data-magnetic className="btn-primary">
-                  Start a project <span style={{ fontSize: 15 }}>&rarr;</span>
-                </a>
-                <a href="#projects" data-hover data-magnetic className="btn-secondary">
-                  Selected work
-                </a>
+              <div className="hero-after mt-8 flex flex-wrap gap-3 md:mt-10">
+                <a href="#contact" className="btn btn-solid">Start a project <ArrowRight size={18} /></a>
+                <a href="#projects" className="btn btn-ghost">Selected work</a>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* MARQUEE */}
-        <section style={{ borderTop: "1px solid rgba(28,24,20,0.14)", borderBottom: "1px solid rgba(28,24,20,0.14)", padding: "clamp(16px,2.4vh,26px) 0", overflow: "hidden" }}>
-          <div className="ah-marquee" style={{ display: "flex", width: "max-content", whiteSpace: "nowrap", animation: "ah-marquee 32s linear infinite" }}>
-            {[0, 1].map((k) => (
-              <span key={k} style={{ fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(26px,4vw,54px)", lineHeight: 1, color: "#1C1814", letterSpacing: "-0.01em" }}>
-                Advertising&nbsp;&nbsp;<em style={{ fontStyle: "italic", color: "#9E5C3D" }}>&#10038;</em>&nbsp;&nbsp;
-                Branded Content&nbsp;&nbsp;<em style={{ fontStyle: "italic", color: "#9E5C3D" }}>&#10038;</em>&nbsp;&nbsp;
-                Web Development&nbsp;&nbsp;<em style={{ fontStyle: "italic", color: "#9E5C3D" }}>&#10038;</em>&nbsp;&nbsp;
-                AI Partnerships&nbsp;&nbsp;<em style={{ fontStyle: "italic", color: "#9E5C3D" }}>&#10038;</em>&nbsp;&nbsp;
-                Social Media&nbsp;&nbsp;<em style={{ fontStyle: "italic", color: "#9E5C3D" }}>&#10038;</em>&nbsp;&nbsp;
-                Brand Films&nbsp;&nbsp;<em style={{ fontStyle: "italic", color: "#9E5C3D" }}>&#10038;</em>&nbsp;&nbsp;
-              </span>
-            ))}
-          </div>
-        </section>
-
-        {/* SERVICES */}
-        <section id="services" style={{ padding: "clamp(72px,12vh,150px) 0" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
-            <div
-              data-reveal
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 24, marginBottom: "clamp(28px,5vh,56px)" }}
-            >
-              <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#9E5C3D" }}>(Services)</span>
-              <h2 style={{ margin: 0, maxWidth: 680, fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(30px,4.4vw,62px)", lineHeight: 1.02, letterSpacing: "-0.02em", color: "#1C1814" }}>
-                Four disciplines, one <em style={{ fontStyle: "italic", color: "#9E5C3D" }}>resonance.</em>
-              </h2>
-            </div>
-            <div>
-              {services.map((item) => (
-                <Link key={item.n} href={`/services/${item.slug}`} data-hover className="service-row" style={{ textDecoration: "none" }}>
-                  <span className="service-row-num" style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 13, letterSpacing: "0.1em", color: "#9E5C3D", paddingTop: 14 }}>{item.n}</span>
-                  <div>
-                    <h3 style={{ margin: "0 0 14px", fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(28px,3.6vw,52px)", lineHeight: 1, letterSpacing: "-0.02em", color: "#1C1814" }}>{item.title}</h3>
-                    <p style={{ margin: 0, maxWidth: 560, fontSize: "clamp(15px,1.3vw,18px)", lineHeight: 1.55, color: "#57503F" }}>{item.blurb}</p>
-                  </div>
-                  <span className="service-row-arrow" style={{ fontFamily: "var(--font-newsreader), serif", fontSize: 30, lineHeight: 1, color: "#1C1814", paddingTop: 8, justifySelf: "end" }}>&#8599;</span>
-                </Link>
-              ))}
-              <div style={{ borderTop: "1px solid rgba(28,24,20,0.16)" }} />
+            <div className="hero-after lg:col-span-6 lg:-mr-10 xl:-mr-24">
+              <HeroScene />
             </div>
           </div>
         </section>
 
-        {/* PROJECTS */}
-        <section id="projects" style={{ padding: "clamp(72px,12vh,150px) 0", borderTop: "1px solid rgba(28,24,20,0.14)" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
-            <div
-              data-reveal
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 24, marginBottom: "clamp(36px,6vh,64px)" }}
-            >
-              <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#9E5C3D" }}>(Selected Work)</span>
-              <h2 style={{ margin: 0, maxWidth: 680, fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(30px,4.4vw,62px)", lineHeight: 1.02, letterSpacing: "-0.02em", color: "#1C1814" }}>
-                Websites engineered for <em style={{ fontStyle: "italic", color: "#9E5C3D" }}>resonance.</em>
-              </h2>
-            </div>
-
-            <div data-reveal className="projects-stage">
-              <div className="projects-list" role="tablist" aria-label="Selected work">
-                {PROJECTS.map((proj, idx) => (
-                  <div key={proj.title} className="project-row-wrap">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={idx === activeProject}
-                      data-hover
-                      className={`project-row${idx === activeProject ? " active" : ""}`}
-                      onClick={() => setActiveProject(idx)}
-                      onMouseEnter={() => setActiveProject(idx)}
-                    >
-                      <span className="project-row-num">{String(idx + 1).padStart(2, "0")}</span>
-                      <span className="project-row-title">{proj.title}</span>
-                      <span className="project-row-tag">{proj.tag}</span>
-                    </button>
-                    {idx === activeProject && (
-                      <div className="project-detail-inline">
-                        <ProjectDetail project={proj} />
+        {/* SERVICES: figure-first 2x2, widths alternate 7/5 then 5/7; each discipline is an object you can play with */}
+        <section id="services" className="border-t border-line py-20 md:py-32">
+          <div className={WRAP}>
+            <h2 data-reveal className="m-0 mb-10 max-w-[18ch] font-display text-4xl font-semibold leading-[1.02] tracking-tight md:mb-14 md:text-6xl">
+              Five disciplines, one resonance.
+            </h2>
+            <div data-reveal className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4">
+              {services.map((s) => {
+                const d = DISCIPLINES[s.slug];
+                return (
+                  <Link
+                    key={s.slug}
+                    href={`/services/${s.slug}`}
+                    className={`group flex flex-col gap-8 rounded-[20px] p-6 no-underline outline-offset-4 focus-visible:outline-2 focus-visible:outline-accent md:p-8 ${d.cell}`}
+                  >
+                    <div className={`mx-auto w-full ${d.wide ? "max-w-[480px]" : "max-w-[360px]"}`}>{d.figure}</div>
+                    <div className="mt-auto">
+                      <div className="flex items-start justify-between gap-6">
+                        <h3 className="m-0 max-w-[16ch] font-display text-3xl font-semibold leading-none tracking-tight md:text-4xl">{s.title}</h3>
+                        <ArrowUpRight size={28} className="transition-transform duration-300 group-hover:-translate-y-1 group-hover:translate-x-1" />
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="project-detail-desktop">
-                <ProjectDetail project={PROJECTS[activeProject]} />
-              </div>
+                      <p className="m-0 mt-4 max-w-[46ch] text-[15px] leading-relaxed opacity-75">{s.blurb}</p>
+                      {s.includes && (
+                        <ul className="m-0 mt-6 flex list-none flex-wrap gap-2 p-0">
+                          {s.includes.map(({ label, icon: Icon }) => (
+                            <li key={label} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm">
+                              <Icon size={14} className="text-accent" /> {label}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
 
-        {/* STUDIO */}
-        <section id="studio" style={{ background: "#1C1814", color: "#F1ECE1", padding: "clamp(82px,14vh,172px) 0" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
-            <span
-              data-reveal
-              style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#C99A7F", marginBottom: "clamp(26px,4vh,44px)" }}
-            >(Studio)</span>
-            <p
-              className="studio-manifesto"
-              style={{ maxWidth: 1040, margin: "0 0 clamp(48px,8vh,96px)", fontFamily: "var(--font-newsreader), serif", fontWeight: 300, fontSize: "clamp(26px,3.6vw,52px)", lineHeight: 1.22, letterSpacing: "-0.015em", color: "#F1ECE1" }}
-            >
-              Anahat Entertainment is the unstruck sound, resonance that needs no source. We build the same way: <em style={{ fontStyle: "italic", color: "#C99A7F" }}>work that keeps moving </em>once it&rsquo;s out in the world. A small, senior team of strategists, filmmakers, and engineers who&rsquo;d rather make one unforgettable thing than ten forgettable ones.
-            </p>
-
-            <div
-              data-reveal
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "clamp(28px,4vw,56px)", paddingBottom: "clamp(54px,9vh,100px)", borderBottom: "1px solid rgba(241,236,225,0.16)" }}
-            >
-              {[
-                { num: "01", title: "Taste first", body: "Craft is the strategy. We sweat the cut, the kerning, and the load time because that's what people actually feel." },
-                { num: "02", title: "Build to ship", body: "Ideas mean nothing on a deck. We make the thing, put it live, and stay accountable to what it does." },
-                { num: "03", title: "Tools as leverage", body: "AI is a brush, not the painter. We use it to make a few people move like a studio of fifty." },
-              ].map((p) => (
-                <div key={p.num}>
-                  <h4 style={{ margin: "0 0 10px", fontFamily: "var(--font-jetbrains), monospace", fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", color: "#C99A7F" }}>{p.num} / {p.title}</h4>
-                  <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "rgba(241,236,225,0.72)" }}>{p.body}</p>
-                </div>
-              ))}
-            </div>
-
-          </div>
-        </section>
-
-        {/* VOICES */}
-        <section id="voices" style={{ padding: "clamp(72px,12vh,150px) 0" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
-            <div
-              data-reveal
-              className="voices-header"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 24, marginBottom: "clamp(20px,4vh,40px)" }}
-            >
-              <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#9E5C3D" }}>(Voices)</span>
-              <h2 style={{ margin: 0, maxWidth: 560, fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(28px,4vw,56px)", lineHeight: 1.04, letterSpacing: "-0.02em", color: "#1C1814", textAlign: "right" }}>What partners say</h2>
-            </div>
-            {testimonials.length > 0 && (
-              <div
-                className="testimonials-viewport"
-                style={{ overflow: "hidden", cursor: "grab", WebkitUserSelect: "none", userSelect: "none", marginBottom: "clamp(20px,3vh,32px)" }}
-              >
-                <div
-                  className="testimonials-track"
-                  style={{ display: "flex", gap: "clamp(14px,2vw,24px)", paddingBottom: 2 }}
-                >
-                  {testimonials.map((q) => {
-                    const expanded = expandedTestimonials.has(q.id);
-                    const isLong = q.quote.length > 220;
+        {/* PROJECTS: tracklist + sticky detail */}
+        <section id="projects" className="border-t border-line py-20 md:py-32">
+          <div className={WRAP}>
+            <h2 data-reveal className="m-0 mb-10 max-w-[20ch] font-display text-4xl font-semibold leading-[1.02] tracking-tight md:mb-14 md:text-6xl">
+              Websites engineered for resonance.
+            </h2>
+            {projects.length === 0 ? (
+              <p className="m-0 text-muted">New work is on its way. <a href="#contact" className="u-link text-ink">Start a project</a> to be next.</p>
+            ) : (
+              <div data-reveal className="grid items-start gap-10 lg:grid-cols-[minmax(260px,420px)_1fr] lg:gap-16">
+                <div role="tablist" aria-label="Selected work" className="flex flex-col">
+                  {projects.map((p, i) => {
+                    const on = i === activeProject;
                     return (
-                      <div
-                        key={q.id}
-                        className="testimonial-card"
-                        style={{
-                          width: "clamp(280px,42vw,600px)",
-                          flexShrink: 0,
-                          padding: "clamp(28px,3.5vw,48px)",
-                          border: "1px solid rgba(28,24,20,0.14)",
-                          borderRadius: 12,
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "space-between",
-                          gap: 20,
-                        }}
-                      >
-                        <p
-                          style={{
-                            margin: 0,
-                            fontFamily: "var(--font-newsreader), serif",
-                            fontWeight: 300,
-                            fontSize: "clamp(19px,2.1vw,30px)",
-                            lineHeight: 1.25,
-                            letterSpacing: "-0.015em",
-                            color: "#1C1814",
-                            ...(expanded
-                              ? {}
-                              : { display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }),
-                          }}
+                      <div key={p.id} className="border-t border-line last:border-b">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={on}
+                          onClick={() => setActiveProject(i)}
+                          onMouseEnter={() => setActiveProject(i)}
+                          className={`flex w-full cursor-pointer items-baseline gap-4 bg-transparent py-4 text-left transition-[padding] duration-300 ${on ? "pl-3" : "pl-0 hover:pl-3"}`}
                         >
-                          &ldquo;{q.quote}&rdquo;
-                        </p>
-                        {isLong && (
-                          <button
-                            type="button"
-                            data-hover
-                            onClick={() => toggleTestimonial(q.id)}
-                            style={{
-                              alignSelf: "flex-start",
-                              background: "none",
-                              border: "none",
-                              padding: 0,
-                              cursor: "pointer",
-                              fontFamily: "var(--font-jetbrains), monospace",
-                              fontSize: 11,
-                              letterSpacing: "0.1em",
-                              textTransform: "uppercase",
-                              color: "#9E5C3D",
-                            }}
-                          >
-                            {expanded ? "Show less" : "Read more"}
-                          </button>
+                          <span className={`flex-1 font-display text-xl font-medium tracking-tight transition-colors md:text-2xl ${on ? "text-accent" : "text-ink"}`}>{p.title}</span>
+                          <span className="hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.06em] text-muted md:inline">{p.tag}</span>
+                        </button>
+                        {on && (
+                          <div className="pb-7 pt-1 lg:hidden">
+                            <ProjectDetail project={p} />
+                          </div>
                         )}
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#1C1814", marginBottom: 4 }}>{q.name}</div>
-                          {q.org && <div style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#57503F" }}>{q.org}</div>}
-                        </div>
                       </div>
                     );
                   })}
                 </div>
+                <div className="sticky top-28 hidden min-h-[340px] rounded-[20px] bg-surface p-10 lg:block">
+                  {projects[activeProject] && <ProjectDetail project={projects[activeProject]} />}
+                </div>
               </div>
             )}
-            <div style={{ borderTop: "1px solid rgba(28,24,20,0.16)", display: "flex", justifyContent: "flex-end", paddingTop: 24 }}>
-              <Link href="/testimonial" data-hover data-magnetic className="btn-secondary">Share your experience &rarr;</Link>
+          </div>
+        </section>
+
+        {/* STUDIO */}
+        <section id="studio" className="border-t border-line py-24 md:py-40">
+          <div className={WRAP}>
+            <p className="studio-manifesto m-0 mb-16 max-w-[26ch] font-display text-[clamp(30px,4.4vw,64px)] font-medium leading-[1.08] tracking-[-0.025em] md:mb-24">
+              Anahat is the unstruck sound, resonance that needs no source. We build the same way: <span className="text-accent">work that keeps moving </span>once it&rsquo;s out in the world.
+            </p>
+            <div data-reveal className="grid gap-10 border-t border-line pt-10 md:grid-cols-[1.4fr_1fr_1fr] md:gap-14">
+              <p className="m-0 max-w-[36ch] text-lg leading-relaxed text-ink">
+                A small, senior team of strategists, filmmakers and engineers who&rsquo;d rather make one unforgettable thing than ten forgettable ones.
+              </p>
+              {[
+                { title: "Taste first", body: "Craft is the strategy. We sweat the cut, the kerning and the load time, because that's what people feel." },
+                { title: "Tools as leverage", body: "AI is a brush, not the painter. It lets a few people move like a studio of fifty." },
+              ].map((p) => (
+                <div key={p.title}>
+                  <h3 className="m-0 mb-2 font-display text-xl font-semibold tracking-tight">{p.title}</h3>
+                  <p className="m-0 text-[15px] leading-relaxed text-muted">{p.body}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* CONTACT */}
-        <section id="contact" style={{ background: "#1C1814", color: "#F1ECE1", padding: "clamp(82px,14vh,172px) 0" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "clamp(48px,7vw,110px)", alignItems: "start" }}>
+        {/* TEAM */}
+        {team.length > 0 && (
+          <section id="team" className="border-t border-line py-20 md:py-32">
+            <div className={WRAP}>
+              <h2 data-reveal className="m-0 mb-10 max-w-[18ch] font-display text-4xl font-semibold leading-[1.02] tracking-tight md:mb-14 md:text-6xl">
+                The people behind the work.
+              </h2>
+              <ul data-reveal className="m-0 grid list-none grid-cols-2 gap-x-4 gap-y-10 p-0 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6">
+                {team.map((m) => {
+                  const body = (
+                    <>
+                      <div className="relative mb-4 aspect-[4/5] overflow-hidden rounded-[20px] bg-surface">
+                        {m.photo_url ? (
+                          <Image
+                            src={m.photo_url}
+                            alt={m.name}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="object-cover grayscale transition duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04] group-hover:grayscale-0"
+                          />
+                        ) : (
+                          <span aria-hidden className="grid h-full place-items-center font-display text-5xl font-bold tracking-tight text-accent">
+                            {m.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="m-0 font-display text-lg font-semibold leading-tight tracking-tight md:text-xl">{m.name}</h3>
+                          <p className="m-0 mt-1 text-sm text-muted">{m.role}</p>
+                        </div>
+                        {m.link && <ArrowUpRight size={18} className="mt-1 text-muted transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink" />}
+                      </div>
+                    </>
+                  );
+                  return (
+                    <li key={m.id}>
+                      {m.link ? (
+                        <a href={m.link} target="_blank" rel="noopener noreferrer" className="group block text-ink no-underline">{body}</a>
+                      ) : (
+                        <div className="group">{body}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {/* VOICES: only once approved testimonials exist; footer keeps the "Leave a testimonial" link */}
+        {testimonials && testimonials.length > 0 && (
+        <section id="voices" className="border-t border-line py-20 md:py-32">
+          <div className={WRAP}>
+            <h2 data-reveal className="m-0 mb-10 font-display text-4xl font-semibold leading-[1.02] tracking-tight md:text-6xl">What partners say</h2>
+            <div className="testimonials-viewport cursor-grab select-none overflow-hidden">
+                <div className="testimonials-track flex gap-4">
+                  {testimonials.map((q) => {
+                    const open = expanded.has(q.id);
+                    return (
+                      <figure key={q.id} className="m-0 flex w-[clamp(280px,42vw,560px)] shrink-0 flex-col justify-between gap-6 rounded-[20px] bg-surface p-7 md:p-10">
+                        <blockquote className={`m-0 font-display text-xl font-medium leading-snug tracking-tight md:text-2xl ${open ? "" : "line-clamp-3"}`}>
+                          &ldquo;{q.quote}&rdquo;
+                        </blockquote>
+                        {q.quote.length > 160 && (
+                          <button type="button" onClick={() => toggleTestimonial(q.id)} className="inline-flex items-center gap-1.5 cursor-pointer self-start bg-transparent p-0 font-mono text-xs uppercase tracking-[0.1em] text-accent">
+                            {open ? "Show less" : "Read more"} <ChevronDown size={14} className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+                          </button>
+                        )}
+                        <figcaption>
+                          <div className="text-sm font-semibold">{q.name}</div>
+                          {q.org && <div className="mt-1 text-sm text-muted">{q.org}</div>}
+                        </figcaption>
+                      </figure>
+                    );
+                  })}
+                </div>
+              </div>
+            <div className="mt-8">
+              <Link href="/testimonial" className="btn btn-ghost">Share your experience <ArrowRight size={18} /></Link>
+            </div>
+          </div>
+        </section>
+        )}
+
+        {/* CONTACT: the one accent panel */}
+        <section id="contact" className="py-6 md:py-10">
+          <div className={WRAP}>
+            <div className="on-accent grid gap-12 rounded-[28px] bg-accent p-7 text-on-accent md:grid-cols-2 md:gap-16 md:p-14 lg:p-20">
               <div data-reveal>
-                <span style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#C99A7F", marginBottom: "clamp(22px,4vh,38px)" }}>(Contact)</span>
-                <h2 style={{ margin: "0 0 clamp(28px,5vh,44px)", fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(34px,5vw,76px)", lineHeight: 1.0, letterSpacing: "-0.025em", color: "#F1ECE1" }}>
-                  Let&rsquo;s make something that <em style={{ fontStyle: "italic", color: "#C99A7F" }}>resonates.</em>
+                <h2 className="m-0 mb-8 font-display text-[clamp(40px,5.4vw,80px)] font-bold leading-[0.95] tracking-[-0.035em]">
+                  Let&rsquo;s make something that resonates.
                 </h2>
-                <a href="mailto:ashutoshswamy397@gmail.com" data-hover className="contact-email-link">
-                  ashutoshswamy397@gmail.com
-                </a>
+                <a href={`mailto:${EMAIL}`} className="u-link inline-flex items-center gap-2 text-[15px] text-on-accent [overflow-wrap:anywhere] sm:text-lg md:text-xl"><Mail size={18} className="shrink-0" />{EMAIL}</a>
+                <Hairline name="inbox" label="A letter tray of envelopes, a new one standing up out of the stack" className="-mb-[10%] -ml-[16%] -mt-[6%] max-w-[480px] [--hairline-plate:var(--accent)]" />
               </div>
-
               <div data-reveal>
-                {sent ? (
-                  <div style={{ border: "1px solid rgba(241,236,225,0.2)", borderRadius: 16, padding: "clamp(34px,4vw,52px)" }}>
-                    <div style={{ fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(26px,3vw,38px)", lineHeight: 1.1, color: "#F1ECE1", marginBottom: 14 }}>
-                      Thank you, <em style={{ fontStyle: "italic", color: "#C99A7F" }}>message received.</em>
-                    </div>
-                    <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "rgba(241,236,225,0.7)" }}>
-                      We read everything ourselves and reply within two working days. Talk soon.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    setContactError("");
-                    const fd = new FormData(e.currentTarget);
-                    const res = await fetch("/api/inquiries", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        service: "General Inquiry",
-                        name: fd.get("name"),
-                        email: fd.get("email"),
-                        company: fd.get("company"),
-                        message: fd.get("message"),
-                      }),
-                    });
-                    if (res.ok) setSent(true);
-                    else setContactError("Something went wrong. Please try again.");
-                  }} style={{ display: "flex", flexDirection: "column", gap: 26 }}>
-                    <div className="form-name-email" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 26 }}>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                        <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Name</span>
-                        <input name="name" type="text" required className="form-input" />
-                      </label>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                        <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Email</span>
-                        <input name="email" type="email" required className="form-input" />
-                      </label>
-                    </div>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                      <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Company</span>
-                      <input name="company" type="text" className="form-input" />
-                    </label>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                      <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Tell us about the project</span>
-                      <textarea name="message" rows={3} className="form-textarea" />
-                    </label>
-                    {contactError && <p style={{ margin: 0, color: "#C99A7F", fontSize: 14 }}>{contactError}</p>}
-                    <button type="submit" data-hover data-magnetic className="submit-btn">
-                      Send inquiry <span style={{ fontSize: 15 }}>&rarr;</span>
-                    </button>
-                  </form>
-                )}
+                <InquiryForm service={{ title: "General Inquiry" }} />
               </div>
             </div>
           </div>
         </section>
+      </main>
 
-        {/* FOOTER */}
-        <footer style={{ background: "#1C1814", color: "#F1ECE1", borderTop: "1px solid rgba(241,236,225,0.14)" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(24px,6vw,110px)", width: "100%" }}>
-            <div className="footer-links-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "clamp(40px,5vw,72px)", padding: "clamp(56px,8vh,96px) 0 clamp(48px,7vh,80px)", borderBottom: "1px solid rgba(241,236,225,0.10)" }}>
-              <div>
-                <p style={{ margin: "0 0 22px", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(241,236,225,0.4)" }}>Navigate</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Services", "Projects", "Studio", "Voices"].map((l) => (
-                    <a key={l} href={`#${l.toLowerCase()}`} data-hover style={{ textDecoration: "none", fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(18px,1.6vw,22px)", color: "#F1ECE1", transition: "color .3s ease", lineHeight: 1 }}
-                      onMouseEnter={e => (e.currentTarget.style.color = "#C99A7F")}
-                      onMouseLeave={e => (e.currentTarget.style.color = "#F1ECE1")}
-                    >{l}</a>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p style={{ margin: "0 0 22px", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(241,236,225,0.4)" }}>Services</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Advertising & Branded Content", "Web Development", "AI Partnerships", "Social Media"].map((s) => (
-                    <a key={s} href="#services" data-hover style={{ textDecoration: "none", fontSize: 15, lineHeight: 1.3, color: "rgba(241,236,225,0.65)", transition: "color .3s ease" }}
-                      onMouseEnter={e => (e.currentTarget.style.color = "#F1ECE1")}
-                      onMouseLeave={e => (e.currentTarget.style.color = "rgba(241,236,225,0.65)")}
-                    >{s}</a>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p style={{ margin: "0 0 22px", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(241,236,225,0.4)" }}>Say hello</p>
-                <a href="mailto:ashutoshswamy397@gmail.com" data-hover style={{ textDecoration: "none", fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(16px,1.4vw,20px)", color: "#C99A7F", display: "block", marginBottom: 20, transition: "opacity .3s ease", lineHeight: 1.3 }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = "0.7")}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-                >ashutoshswamy397@gmail.com</a>
-                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "rgba(241,236,225,0.45)" }}>Pune, India<br />Available worldwide</p>
-              </div>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 18, paddingTop: "clamp(18px,2.5vh,28px)", paddingBottom: "clamp(28px,4vh,44px)", borderTop: "1px solid rgba(241,236,225,0.10)", fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(241,236,225,0.4)" }}>
-              <span>&copy; 2026 Anahat Entertainment</span>
-              <span style={{ color: "#C99A7F", letterSpacing: "0.12em" }}>Made to resonate</span>
-              <span>Pune / Worldwide</span>
-            </div>
+      {/* FOOTER: quiet link grid, then the wordmark as the one loud thing. Letters ripple on hover, like a struck note. */}
+      <footer className="border-t border-line pt-16 md:pt-24">
+        <div className={WRAP}>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-12 lg:grid-cols-12 lg:gap-8">
+            <p className="m-0 max-w-[30ch] text-lg leading-snug text-ink col-span-2 lg:col-span-3">
+              Brand films, advertising, websites, custom software, social and AI, made by a small senior team.
+            </p>
+
+            <nav aria-label="Footer" className="lg:col-span-2">
+              <h3 className="m-0 mb-4 text-sm font-normal text-muted">Explore</h3>
+              <ul className="m-0 grid list-none gap-2.5 p-0">
+                {nav.map((l) => (
+                  <li key={l}><a href={`#${l.toLowerCase()}`} className="u-link text-ink">{l}</a></li>
+                ))}
+                <li><Link href="/testimonial" className="u-link text-ink">Leave a testimonial</Link></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Services" className="lg:col-span-3">
+              <h3 className="m-0 mb-4 text-sm font-normal text-muted">Services</h3>
+              <ul className="m-0 grid list-none gap-2.5 p-0">
+                {services.map((s) => (
+                  <li key={s.slug}><Link href={`/services/${s.slug}`} className="u-link text-ink">{s.title}</Link></li>
+                ))}
+              </ul>
+            </nav>
+
+            <address className="col-span-2 not-italic lg:col-span-4">
+              <h3 className="m-0 mb-4 text-sm font-normal text-muted">Contact</h3>
+              <a href={`mailto:${EMAIL}`} className="u-link inline-flex items-center gap-2 text-ink [overflow-wrap:anywhere]"><Mail size={16} className="shrink-0 text-accent" />{EMAIL}</a>
+              <p className="m-0 mt-2.5 inline-flex items-center gap-2 text-ink"><MapPin size={16} className="shrink-0 text-accent" />Pune, Maharashtra, India</p>
+            </address>
           </div>
-        </footer>
 
-      </div>
+          <a href="#top" aria-label="Anahat Entertainment, back to top" className="footer-wordmark mt-16 block select-none font-display text-[clamp(48px,24.4vw,330px)] font-bold leading-[0.78] tracking-[-0.055em] text-ink no-underline md:mt-24">
+            {"Anahat".split("").map((ch, i) => (
+              <span key={i} aria-hidden style={{ "--i": i } as React.CSSProperties}>{ch}</span>
+            ))}
+            <span aria-hidden className="text-accent" style={{ "--i": 6 } as React.CSSProperties}>.</span>
+          </a>
 
-      {/* CUSTOM CURSOR */}
-      <div id="ah-cursor-ring" style={{ position: "fixed", top: 0, left: 0, width: 38, height: 38, border: "1.5px solid #ffffff", borderRadius: "50%", pointerEvents: "none", zIndex: 9999, mixBlendMode: "difference", willChange: "transform" }} />
-      <div id="ah-cursor-dot" style={{ position: "fixed", top: 0, left: 0, width: 6, height: 6, background: "#ffffff", borderRadius: "50%", pointerEvents: "none", zIndex: 9999, mixBlendMode: "difference", willChange: "transform" }} />
+          <div className="flex flex-col gap-4 border-t border-line py-6 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
+            <p className="m-0">&copy; {new Date().getFullYear()} Anahat Entertainment. All rights reserved.</p>
+            <a href="#top" className="u-link inline-flex items-center gap-1.5 self-start text-ink sm:self-auto">Back to top <ArrowUp size={15} /></a>
+          </div>
+        </div>
+      </footer>
     </>
   );
 }

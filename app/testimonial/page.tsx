@@ -2,80 +2,68 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeft, ArrowRight, CircleAlert, CircleCheck } from "lucide-react";
 
 export default function TestimonialPage() {
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    setBusy(true);
     try {
       const fd = new FormData(e.currentTarget);
       const res = await fetch("/api/testimonials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: fd.get("name"),
-          org: fd.get("org"),
-          quote: fd.get("quote"),
-        }),
+        body: JSON.stringify({ name: fd.get("name"), org: fd.get("org"), quote: fd.get("quote"), website: fd.get("website") }),
       });
       if (res.ok) setSent(true);
-      else setError("Something went wrong. Please try again.");
+      else setError("Your testimonial didn't send. Check your connection and try again.");
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("Your testimonial didn't send. Check your connection and try again.");
     }
+    setBusy(false);
   }
 
-  return (
-    <main style={{ minHeight: "100vh", background: "#1C1814", color: "#F1ECE1", padding: "clamp(80px,12vh,140px) clamp(24px,6vw,110px)" }}>
-      <div style={{ maxWidth: 700, margin: "0 auto" }}>
-        <Link
-          href="/"
-          style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(241,236,225,0.45)", textDecoration: "none", display: "inline-block", marginBottom: "clamp(48px,8vh,96px)", transition: "color 0.3s ease" }}
-        >
-          &larr; Back
-        </Link>
+  const label = "flex flex-col gap-2";
+  const cap = "font-mono text-xs uppercase tracking-[0.12em] text-muted";
 
-        <span style={{ display: "block", fontFamily: "var(--font-jetbrains), monospace", fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#C99A7F", marginBottom: 18 }}>
-          (Voices)
-        </span>
-        <h1 style={{ margin: "0 0 clamp(14px,2vh,20px)", fontFamily: "var(--font-newsreader), serif", fontWeight: 400, fontSize: "clamp(36px,6vw,72px)", lineHeight: 1.0, letterSpacing: "-0.025em", color: "#F1ECE1" }}>
-          Share your experience.
-        </h1>
-        <p style={{ margin: "0 0 clamp(40px,7vh,72px)", fontSize: 16, lineHeight: 1.6, color: "rgba(241,236,225,0.55)" }}>
-          Your testimonial will be reviewed before appearing on the site.
-        </p>
+  return (
+    <main className="min-h-[100dvh] px-4 py-16 sm:px-8 md:py-24">
+      <div className="mx-auto max-w-[700px]">
+        <Link href="/#voices" className="u-link mb-16 inline-flex items-center gap-1.5 text-sm text-muted md:mb-24"><ArrowLeft size={15} /> Back to site</Link>
+        <h1 className="m-0 mb-4 font-display text-[clamp(40px,6vw,72px)] font-bold leading-[0.95] tracking-[-0.035em]">Share your experience.</h1>
+        <p className="m-0 mb-14 text-base leading-relaxed text-muted">We review every testimonial before it appears on the site.</p>
 
         {sent ? (
-          <div>
-            <div style={{ fontFamily: "var(--font-newsreader), serif", fontSize: "clamp(26px,3vw,38px)", lineHeight: 1.1, color: "#F1ECE1", marginBottom: 14 }}>
-              Thank you, <em style={{ fontStyle: "italic", color: "#C99A7F" }}>we appreciate it.</em>
-            </div>
-            <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: "rgba(241,236,225,0.7)" }}>
-              We&rsquo;ll review your testimonial and publish it shortly.
-            </p>
+          <div role="status">
+            <p className="m-0 mb-3 flex items-center gap-3 font-display text-3xl font-semibold tracking-tight md:text-4xl"><CircleCheck size={32} className="text-accent" /> Testimonial sent.</p>
+            <p className="m-0 text-base leading-relaxed text-muted">Thank you. It will appear on the site once reviewed.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 30 }}>
-            <div className="form-name-email" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 30 }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Name</span>
-                <input name="name" type="text" required className="form-input" />
+          <form onSubmit={handleSubmit} className="flex flex-col gap-7">
+            {/* Honeypot: hidden from people, filled by bots */}
+            <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] h-px w-px opacity-0" />
+            <div className="grid grid-cols-1 gap-7 sm:grid-cols-2">
+              <label className={label}>
+                <span className={cap}>Name</span>
+                <input name="name" type="text" required autoComplete="name" className="field" />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Role / Company</span>
-                <input name="org" type="text" className="form-input" />
+              <label className={label}>
+                <span className={cap}>Role / Company</span>
+                <input name="org" type="text" autoComplete="organization" className="field" />
               </label>
             </div>
-            <label style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              <span style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(241,236,225,0.5)" }}>Your testimonial</span>
-              <textarea name="quote" rows={5} required className="form-textarea" />
+            <label className={label}>
+              <span className={cap}>Your testimonial</span>
+              <textarea name="quote" rows={5} required className="field" />
             </label>
-            {error && <p style={{ margin: 0, color: "#C99A7F", fontSize: 14 }}>{error}</p>}
-            <button type="submit" className="submit-btn">
-              Submit <span style={{ fontSize: 15 }}>&rarr;</span>
+            {error && <p role="alert" className="m-0 flex items-center gap-2 text-sm font-medium text-accent"><CircleAlert size={16} /> {error}</p>}
+            <button type="submit" disabled={busy} className="btn btn-solid self-start disabled:opacity-60">
+              {busy ? "Sending..." : "Send testimonial"} <ArrowRight size={18} />
             </button>
           </form>
         )}

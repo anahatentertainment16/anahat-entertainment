@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { services } from "@/lib/services";
-
-const BASE = "https://anahat-entertainment.vercel.app";
+import { SITE_URL as BASE } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const serviceUrls = services.map((s) => ({

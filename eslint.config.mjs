@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Hairline: vendored kernel, browser-global figures, and their generated bundle.
+    "hairline/**",
+    "public/hairline/**",
   ]),
 ]);
 

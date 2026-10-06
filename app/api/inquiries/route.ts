@@ -1,8 +1,11 @@
-import { neon } from "@neondatabase/serverless";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { service, name, email, company, message } = body;
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") return Response.json({ error: "Invalid request" }, { status: 400 });
+  const { service, name, email, company, message, website } = body;
+  // Honeypot: hidden field real visitors never fill. Pretend success so bots don't retry.
+  if (website) return Response.json({ ok: true });
 
   if (!service || !name || !email) {
     return Response.json({ error: "Missing required fields" }, { status: 400 });
@@ -17,25 +20,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Message too long" }, { status: 400 });
   }
 
-  const sql = neon(process.env.DATABASE_URL!);
-
-  // ponytail: init on first request; move to a migration script if schema changes
-  await sql`
-    CREATE TABLE IF NOT EXISTS inquiries (
-      id SERIAL PRIMARY KEY,
-      service TEXT NOT NULL,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
-      company TEXT,
-      message TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `;
-
-  await sql`
-    INSERT INTO inquiries (service, name, email, company, message)
-    VALUES (${service.slice(0, 100)}, ${name.trim()}, ${email.trim()}, ${company ? String(company).slice(0, 200) : null}, ${message ? String(message).slice(0, 5000) : null})
-  `;
+  const { error } = await supabase.from("inquiries").insert({
+    service: String(service).slice(0, 100),
+    name: name.trim(),
+    email: email.trim(),
+    company: company ? String(company).slice(0, 200) : null,
+    message: message ? String(message).slice(0, 5000) : null,
+  });
+  if (error) {
+    console.error("Inquiry insert error:", error.message);
+    return Response.json({ error: "Database error" }, { status: 500 });
+  }
 
   return Response.json({ ok: true });
 }
