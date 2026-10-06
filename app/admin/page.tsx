@@ -24,6 +24,7 @@ type Project = {
   image_url: string | null;
   image_path: string | null;
   sort: number;
+  featured: boolean;
 };
 
 type Member = {
@@ -113,7 +114,7 @@ function projectFields(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim().slice(0, 2000);
   const sort = Number(formData.get("sort")) || 0;
   if (!title || !tag || !description) throw new Error("Title, tag and description are required");
-  return { title, tag, description, sort, link: safeLink(formData.get("link")) };
+  return { title, tag, description, sort, featured: formData.get("featured") === "on", link: safeLink(formData.get("link")) };
 }
 
 function teamFields(formData: FormData) {
@@ -137,6 +138,7 @@ async function addProject(formData: FormData) {
   }
   revalidatePath("/admin");
   revalidatePath("/");
+  revalidatePath("/projects");
 }
 
 // A new image replaces the old one, which is removed only once the row points at the new one.
@@ -154,6 +156,7 @@ async function updateProject(id: number, oldPath: string | null, formData: FormD
   if (image_path && oldPath) await supabase.storage.from(PROJECT_BUCKET).remove([oldPath]);
   revalidatePath("/admin");
   revalidatePath("/");
+  revalidatePath("/projects");
 }
 
 async function deleteProject(id: number, imagePath: string | null) {
@@ -163,6 +166,7 @@ async function deleteProject(id: number, imagePath: string | null) {
   if (imagePath) await supabase.storage.from(PROJECT_BUCKET).remove([imagePath]);
   revalidatePath("/admin");
   revalidatePath("/");
+  revalidatePath("/projects");
 }
 
 async function addTeamMember(formData: FormData) {
@@ -225,6 +229,7 @@ const ProjectFields = ({ p, sort }: { p?: Project; sort: number }) => (
     <label className={label}>Link (optional)<input name="link" type="url" placeholder="https://" defaultValue={p?.link ?? ""} className={input} /></label>
     <label className={label}>Order<input name="sort" type="number" defaultValue={sort} className={input} /></label>
     <label className={`${label} col-span-full`}>Description<textarea name="description" required rows={3} maxLength={2000} defaultValue={p?.description} className={input} /></label>
+    <label className="flex items-center gap-2 self-end text-sm text-ink"><input name="featured" type="checkbox" defaultChecked={p?.featured} className="size-4 accent-[var(--accent-text)]" />Featured on home page</label>
     <label className={`${label} gap-3`}>{p ? "Replace image (optional)" : "Image, up to 5MB"}<input name="image" type="file" accept={IMAGE_ACCEPT} className={fileInput} /></label>
   </>
 );
@@ -460,7 +465,7 @@ export default async function AdminPage() {
                       <div className="p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-sm text-accent">{p.tag}</p>
+                            <p className="text-sm text-accent">{p.tag}{p.featured && <span className="text-muted"> / Featured</span>}</p>
                             <h3 className="mt-1 font-display text-xl leading-tight">{p.title}</h3>
                           </div>
                           <span className="pt-1 font-mono text-xs text-muted" title="Display order">#{p.sort}</span>

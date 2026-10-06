@@ -15,37 +15,16 @@ import Navbar from "./Navbar";
 import Loader from "./Loader";
 import { siteReady } from "./ready";
 import Hairline from "./Hairline";
+import Freq from "./Freq";
 import InquiryForm from "./services/[slug]/InquiryForm";
 import { ArrowRight, ArrowUp, ArrowUpRight, ChevronDown, Clock, Mail, MapPin } from "lucide-react";
 
 type Testimonial = { id: number; name: string; org: string | null; quote: string };
 
-export type Project = { id: number; title: string; link: string | null; tag: string; description: string; image_url: string | null };
+export type Project = { id: number; title: string; link: string | null; tag: string; description: string; image_url: string | null; featured: boolean };
 export type Member = { id: number; name: string; role: string; link: string | null; photo_url: string | null };
 
 const NAV = ["Services", "Projects", "Studio", "Voices"];
-
-// Deterministic "frequency" fingerprint per title: each project and service has its own signal.
-function freqPattern(seed: string, count = 22): number[] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const bars: number[] = [];
-  for (let i = 0; i < count; i++) {
-    h = (h * 1103515245 + 12345) >>> 0;
-    bars.push(14 + ((h % 1000) / 1000) * 50);
-  }
-  return bars;
-}
-
-function Freq({ seed, count, className = "" }: { seed: string; count?: number; className?: string }) {
-  return (
-    <div aria-hidden className={`flex h-16 items-end gap-[3px] ${className}`}>
-      {freqPattern(seed, count).map((h, i) => (
-        <span key={i} className="w-[3px] rounded-full bg-current" style={{ height: h, opacity: 0.35 + (i % 3) * 0.22 }} />
-      ))}
-    </div>
-  );
-}
 
 // Services grid: span, tone and figure per discipline. --hairline-plate must match the cell background.
 const DISCIPLINES: Record<string, { cell: string; wide: boolean; figure: React.ReactNode }> = {
@@ -77,40 +56,11 @@ const DISCIPLINES: Record<string, { cell: string; wide: boolean; figure: React.R
   },
 };
 
-function ProjectDetail({ project }: { project: Project }) {
-  return (
-    <div key={project.title} className="project-detail-inner flex flex-col items-start gap-2">
-      <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{project.tag}</span>
-      <h3 className="m-0 mt-1 font-display text-3xl font-semibold leading-[1.05] tracking-tight md:text-4xl">{project.title}</h3>
-      <Freq seed={project.title} className="my-3 text-accent" />
-      {project.image_url && (
-        <Image
-          src={project.image_url}
-          alt={project.title}
-          width={960}
-          height={600}
-          sizes="(max-width: 900px) 100vw, 50vw"
-          className="mb-4 h-auto w-full max-w-[560px] rounded-xl"
-        />
-      )}
-      <p className="m-0 mb-5 max-w-[52ch] text-[15px] leading-relaxed text-muted">{project.description}</p>
-      {project.link ? (
-        <a href={project.link} target="_blank" rel="noopener noreferrer" className="u-link inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.08em] text-ink">
-          Visit site <ArrowUpRight size={14} />
-        </a>
-      ) : (
-        <span className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.08em] text-muted"><Clock size={14} /> In development. Case study coming soon.</span>
-      )}
-    </div>
-  );
-}
-
-export default function Home({ projects, team }: { projects: Project[]; team: Member[] }) {
+export default function Home({ projects, projectCount, team }: { projects: Project[]; projectCount: number; team: Member[] }) {
   const [testimonials, setTestimonials] = useState<Testimonial[] | null>(null);
   // Team and Voices links only show once their sections have something to show.
   const nav = (team.length ? [...NAV.slice(0, 3), "Team", NAV[3]] : NAV).filter((l) => l !== "Voices" || testimonials?.length);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [activeProject, setActiveProject] = useState(0);
 
   const toggleTestimonial = (id: number) =>
     setExpanded((prev) => {
@@ -246,45 +196,70 @@ export default function Home({ projects, team }: { projects: Project[]; team: Me
           </div>
         </section>
 
-        {/* PROJECTS: tracklist + sticky detail */}
+        {/* PROJECTS: featured work, lead project first */}
         <section id="projects" className="border-t border-line py-20 md:py-32">
           <div className={WRAP}>
             <h2 data-reveal className="m-0 mb-10 max-w-[20ch] font-display text-4xl font-semibold leading-[1.02] tracking-tight md:mb-14 md:text-6xl">
-              Websites engineered for resonance.
+              Made to be felt, not just seen.
             </h2>
             {projects.length === 0 ? (
               <p className="m-0 text-muted">New work is on its way. <a href="#contact" className="u-link text-ink">Start a project</a> to be next.</p>
             ) : (
-              <div data-reveal className="grid items-start gap-10 lg:grid-cols-[minmax(260px,420px)_1fr] lg:gap-16">
-                <div role="tablist" aria-label="Selected work" className="flex flex-col">
-                  {projects.map((p, i) => {
-                    const on = i === activeProject;
-                    return (
-                      <div key={p.id} className="border-t border-line last:border-b">
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={on}
-                          onClick={() => setActiveProject(i)}
-                          onMouseEnter={() => setActiveProject(i)}
-                          className={`flex w-full cursor-pointer items-baseline gap-4 bg-transparent py-4 text-left transition-[padding] duration-300 ${on ? "pl-3" : "pl-0 hover:pl-3"}`}
-                        >
-                          <span className={`flex-1 font-display text-xl font-medium tracking-tight transition-colors md:text-2xl ${on ? "text-accent" : "text-ink"}`}>{p.title}</span>
-                          <span className="hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.06em] text-muted md:inline">{p.tag}</span>
-                        </button>
-                        {on && (
-                          <div className="pb-7 pt-1 lg:hidden">
-                            <ProjectDetail project={p} />
-                          </div>
-                        )}
-                      </div>
+              <>
+                {/* Lead project as a split panel, the rest two to a row */}
+                {(() => {
+                  const [lead, ...rest] = projects;
+                  const thumb = (p: Project, sizes: string) =>
+                    p.image_url ? (
+                      <Image src={p.image_url} alt={p.title} fill sizes={sizes} className="object-cover object-top" />
+                    ) : (
+                      <div className="grid h-full place-items-center"><Freq seed={p.title} count={36} className="scale-150 text-accent" /></div>
                     );
-                  })}
-                </div>
-                <div className="sticky top-28 hidden min-h-[340px] rounded-[20px] bg-surface p-10 lg:block">
-                  {projects[activeProject] && <ProjectDetail project={projects[activeProject]} />}
-                </div>
-              </div>
+                  return (
+                    <>
+                      <article data-reveal className="grid overflow-hidden rounded-[20px] bg-surface lg:grid-cols-12">
+                        <div className="relative aspect-[16/10] bg-paper lg:col-span-8 lg:aspect-auto lg:min-h-[460px]">{thumb(lead, "(max-width: 1024px) 100vw, 66vw")}</div>
+                        <div className="flex flex-col items-start p-6 md:p-10 lg:col-span-4 lg:justify-center">
+                          <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{lead.tag}</span>
+                          <h3 className="m-0 mt-3 font-display text-3xl font-semibold leading-[1.02] tracking-tight md:text-5xl">{lead.title}</h3>
+                          <p className="m-0 mt-4 max-w-[46ch] text-[15px] leading-relaxed text-muted">{lead.description}</p>
+                          {lead.link ? (
+                            <a href={lead.link} target="_blank" rel="noopener noreferrer" className="btn btn-ghost mt-7">Visit site <ArrowUpRight size={18} /></a>
+                          ) : (
+                            <span className="mt-7 inline-flex items-center gap-1.5 text-sm text-muted"><Clock size={15} /> In development</span>
+                          )}
+                        </div>
+                      </article>
+                      {rest.length > 0 && (
+                        <ul data-reveal className="m-0 mt-10 grid list-none grid-cols-1 gap-x-6 gap-y-12 p-0 md:mt-14 md:grid-cols-2 lg:gap-x-8">
+                          {rest.map((p, i) => {
+                            // An odd one out takes the full row (wider crop) so no cell sits empty.
+                            const wide = i === rest.length - 1 && rest.length % 2 === 1;
+                            const body = (
+                              <>
+                                <div className={`relative aspect-[16/10] overflow-hidden rounded-[20px] bg-surface ${wide ? "md:aspect-[21/9]" : ""}`}>{thumb(p, wide ? "100vw" : "(max-width: 768px) 100vw, 50vw")}</div>
+                                <div className="mt-5 flex items-start justify-between gap-6">
+                                  <div>
+                                    <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{p.tag}</span>
+                                    <h3 className="m-0 mt-2 font-display text-2xl font-semibold leading-[1.05] tracking-tight md:text-3xl">{p.title}</h3>
+                                  </div>
+                                  {p.link ? <ArrowUpRight size={26} className="mt-5 shrink-0" /> : <span className="mt-5 inline-flex shrink-0 items-center gap-1.5 text-sm text-muted"><Clock size={15} /> In development</span>}
+                                </div>
+                              </>
+                            );
+                            return (
+                              <li key={p.id} className={wide ? "md:col-span-2" : ""}>
+                                {p.link ? <a href={p.link} target="_blank" rel="noopener noreferrer" className="block text-ink no-underline">{body}</a> : body}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </>
+                  );
+                })()}
+                <Link href="/projects" className="btn btn-ghost mt-10">See all {projectCount} projects <ArrowRight size={18} /></Link>
+              </>
             )}
           </div>
         </section>
@@ -430,6 +405,7 @@ export default function Home({ projects, team }: { projects: Project[]; team: Me
                 {nav.map((l) => (
                   <li key={l}><a href={`#${l.toLowerCase()}`} className="u-link text-ink">{l}</a></li>
                 ))}
+                <li><Link href="/projects" className="u-link text-ink">All projects</Link></li>
                 <li><Link href="/testimonial" className="u-link text-ink">Leave a testimonial</Link></li>
               </ul>
             </nav>

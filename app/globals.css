@@ -131,16 +131,6 @@ body::after {
 .field:focus { border-color: currentColor; box-shadow: 0 1px 0 currentColor; }
 textarea.field { resize: vertical; }
 
-/* Project detail swap */
-@keyframes ah-fade {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
-}
-.project-detail-inner { animation: ah-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .project-detail-inner { animation: none; }
-}
-
 /* Solid button inside the accent panel must not hover into the panel color */
 .on-accent .btn-solid:hover { background: var(--paper); color: var(--ink); }
 
