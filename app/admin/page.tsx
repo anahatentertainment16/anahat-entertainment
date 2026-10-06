@@ -181,10 +181,18 @@ async function addTag(formData: FormData) {
   revalidatePath("/admin");
 }
 
-// The foreign key refuses to delete a tag still on a project; the UI hides delete for those anyway.
-async function deleteTag(name: string) {
+// A tag in use needs a "moveTo" tag; its projects move there first. The foreign key refuses the delete otherwise.
+// ponytail: two calls, not a transaction. If the delete fails the projects stay moved, which is harmless.
+async function deleteTag(name: string, formData: FormData) {
   "use server";
   await requireAdmin();
+  const moveTo = String(formData.get("moveTo") ?? "");
+  if (moveTo && moveTo !== name) {
+    const moved = await supabase.from("projects").update({ tag: moveTo }).eq("tag", name);
+    if (moved.error) throw new Error(`Moving projects failed: ${moved.error.message}`);
+    revalidatePath("/");
+    revalidatePath("/projects");
+  }
   const { error } = await supabase.from("tags").delete().eq("name", name);
   if (error) throw new Error(error.code === "23503" ? `"${name}" is still used by a project` : `Tag delete failed: ${error.message}`);
   revalidatePath("/admin");
@@ -522,7 +530,20 @@ export default async function AdminPage() {
                         <form action={deleteTag.bind(null, t)} className="flex">
                           <ConfirmButton message={`Delete the tag "${t}"?`} className="rounded-full p-1 text-muted hover:text-ink" label={`Delete tag ${t}`}><X size={14} /></ConfirmButton>
                         </form>
-                      ) : <span className="w-1" />}
+                      ) : (
+                        <details className="group flex items-center">
+                          <summary className={`${summary} rounded-full p-1 text-muted hover:text-ink group-open:text-ink`} aria-label={`Delete tag ${t}`} title={`Delete tag ${t}`}><X size={14} /></summary>
+                          {tags.length > 1 ? (
+                            <form action={deleteTag.bind(null, t)} className="flex items-center gap-2 pl-1 pr-2">
+                              <select name="moveTo" required defaultValue="" aria-label={`Move projects tagged ${t} to`} className={`${input} text-sm`}>
+                                <option value="" disabled>Move {used} to…</option>
+                                {tags.filter((o) => o !== t).map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                              <ConfirmButton message={`Move ${plural(used, "project")} to the chosen tag and delete "${t}"?`} className="btn btn-ghost btn-sm">Move &amp; delete</ConfirmButton>
+                            </form>
+                          ) : <span className="px-2 text-xs text-muted">Add another tag to move its projects to</span>}
+                        </details>
+                      )}
                     </span>
                   );
                 })}
