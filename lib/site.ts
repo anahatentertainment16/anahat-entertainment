@@ -6,6 +6,6 @@ export const OG_BASE = {
   type: "website" as const,
   locale: "en_IN",
   siteName: SITE_NAME,
-  images: [{ url: "/og-image.png", width: 1200, height: 630, alt: `${SITE_NAME} | Creative Studio` }],
+  images: [{ url: "/og-image.png", width: 1730, height: 909, alt: `${SITE_NAME} | Creative Studio` }],
 };
 export const WRAP = "mx-auto w-full max-w-[1320px] px-4 sm:px-8 lg:px-14";

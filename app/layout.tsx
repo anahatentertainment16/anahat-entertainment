@@ -32,6 +32,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   category: "business",
   formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     ...OG_BASE,
     url: SITE_URL,
@@ -65,7 +72,7 @@ const orgJsonLd = {
   "@id": `${SITE_URL}/#organization`,
   name: SITE_NAME,
   url: SITE_URL,
-  logo: `${SITE_URL}/og-image.png`,
+  logo: `${SITE_URL}/logo.png`,
   email: EMAIL,
   description: "Creative studio for advertising and branded content, web development, custom software, social media, and AI partnerships.",
   address: { "@type": "PostalAddress", addressLocality: "Pune", addressRegion: "Maharashtra", addressCountry: "IN" },

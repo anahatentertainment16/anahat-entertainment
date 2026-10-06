@@ -51,16 +51,27 @@ export default async function ServicePage({ params }: Props) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Service",
-              name: service.title,
-              description: service.blurb,
-              url: `${SITE_URL}/services/${slug}`,
-              provider: { "@id": `${SITE_URL}/#organization` },
-              areaServed: "Worldwide",
-              serviceType: service.title,
-            }).replace(/</g, "\\u003c"),
+            __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "Service",
+                name: service.title,
+                description: service.blurb,
+                url: `${SITE_URL}/services/${slug}`,
+                provider: { "@id": `${SITE_URL}/#organization` },
+                areaServed: "Worldwide",
+                serviceType: service.title,
+              },
+              {
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                itemListElement: [
+                  { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+                  { "@type": "ListItem", position: 2, name: "Services", item: `${SITE_URL}/#services` },
+                  { "@type": "ListItem", position: 3, name: service.title, item: `${SITE_URL}/services/${slug}` },
+                ],
+              },
+            ]).replace(/</g, "\\u003c"),
           }}
         />
         <div className="rounded-[20px] bg-surface p-7 md:p-12">
