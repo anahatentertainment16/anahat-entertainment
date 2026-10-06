@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { services } from "@/lib/services";
-import { OG_BASE, SITE_URL } from "@/lib/site";
+import { OG_BASE, SITE_URL, OG_IMAGE } from "@/lib/site";
 import InquiryForm from "./InquiryForm";
 import { ArrowLeft } from "lucide-react";
 
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: service.blurb,
     alternates: { canonical: `/services/${slug}` },
     openGraph: { ...OG_BASE, title, description: service.blurb, url: `/services/${slug}` },
-    twitter: { card: "summary_large_image", title, description: service.blurb, images: ["/og-image.png"] },
+    twitter: { card: "summary_large_image", title, description: service.blurb, images: [OG_IMAGE] },
   };
 }
 

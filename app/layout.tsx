@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { EMAIL, OG_BASE, SITE_NAME, SITE_URL } from "@/lib/site";
+import { EMAIL, OG_BASE, SITE_NAME, SITE_URL, OG_IMAGE } from "@/lib/site";
 
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"], display: "swap" });
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"], display: "swap" });
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: "Anahat Entertainment | Creative Studio",
     description:
       "A creative studio for advertising and branded content, web development, custom software, social, and the intelligent tools shaping what comes next.",
-    images: ["/og-image.png"],
+    images: [OG_IMAGE],
   },
 };
 
