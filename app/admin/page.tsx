@@ -48,19 +48,21 @@ type Testimonial = {
 };
 
 async function getData() {
-  const [inquiries, testimonials, projects, team] = await Promise.all([
+  const [inquiries, testimonials, projects, team, tags] = await Promise.all([
     supabase.from("inquiries").select("*").order("created_at", { ascending: false }),
     supabase.from("testimonials").select("*").order("approved").order("created_at", { ascending: false }),
     supabase.from("projects").select("*").order("sort").order("created_at"),
     supabase.from("team").select("*").order("sort").order("created_at"),
+    supabase.from("tags").select("name").order("name"),
   ]);
-  const error = inquiries.error ?? testimonials.error ?? projects.error ?? team.error;
+  const error = inquiries.error ?? testimonials.error ?? projects.error ?? team.error ?? tags.error;
   if (error) console.error("Admin getData failed:", error.message);
   return {
     inquiries: (inquiries.data ?? []) as Inquiry[],
     testimonials: (testimonials.data ?? []) as Testimonial[],
     projects: (projects.data ?? []) as Project[],
     team: (team.data ?? []) as Member[],
+    tags: (tags.data ?? []).map((t) => t.name as string),
     error: error?.message ?? null,
     weekAgo: Date.now() - 7 * 864e5,
   };
@@ -169,6 +171,25 @@ async function deleteProject(id: number, imagePath: string | null) {
   revalidatePath("/projects");
 }
 
+async function addTag(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim().slice(0, 100);
+  if (!name) throw new Error("Tag name is required");
+  const { error } = await supabase.from("tags").insert({ name });
+  if (error) throw new Error(error.code === "23505" ? `Tag "${name}" already exists` : `Tag save failed: ${error.message}`);
+  revalidatePath("/admin");
+}
+
+// The foreign key refuses to delete a tag still on a project; the UI hides delete for those anyway.
+async function deleteTag(name: string) {
+  "use server";
+  await requireAdmin();
+  const { error } = await supabase.from("tags").delete().eq("name", name);
+  if (error) throw new Error(error.code === "23503" ? `"${name}" is still used by a project` : `Tag delete failed: ${error.message}`);
+  revalidatePath("/admin");
+}
+
 async function addTeamMember(formData: FormData) {
   "use server";
   await requireAdmin();
@@ -222,10 +243,15 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // Add and edit share these fields; edit passes the current row as defaults.
-const ProjectFields = ({ p, sort }: { p?: Project; sort: number }) => (
+const ProjectFields = ({ p, sort, tags }: { p?: Project; sort: number; tags: string[] }) => (
   <>
     <label className={label}>Title<input name="title" required maxLength={200} defaultValue={p?.title} className={input} /></label>
-    <label className={label}>Tag<input name="tag" required maxLength={100} placeholder="Web Application" defaultValue={p?.tag} className={input} /></label>
+    <label className={label}>Tag
+      <select name="tag" required defaultValue={p?.tag ?? ""} className={input}>
+        <option value="" disabled>{tags.length ? "Choose a tag" : "Add a tag first"}</option>
+        {tags.map((t) => <option key={t} value={t}>{t}</option>)}
+      </select>
+    </label>
     <label className={label}>Link (optional)<input name="link" type="url" placeholder="https://" defaultValue={p?.link ?? ""} className={input} /></label>
     <label className={label}>Order<input name="sort" type="number" defaultValue={sort} className={input} /></label>
     <label className={`${label} col-span-full`}>Description<textarea name="description" required rows={3} maxLength={2000} defaultValue={p?.description} className={input} /></label>
@@ -280,7 +306,8 @@ const EditPanel = ({ action, children }: { action: (fd: FormData) => Promise<voi
 
 export default async function AdminPage() {
   await requireAdmin();
-  const { inquiries, testimonials, projects, team, error, weekAgo } = await getData();
+  const { inquiries, testimonials, projects, team, tags, error, weekAgo } = await getData();
+  const tagUse = Object.groupBy(projects, (p) => p.tag);
   const pending = testimonials.filter((t) => !t.approved && !t.declined);
   const approved = testimonials.filter((t) => t.approved);
   const archived = testimonials.filter((t) => t.declined);
@@ -472,7 +499,7 @@ export default async function AdminPage() {
                         </div>
                         <p className="mt-2 truncate text-sm text-muted">{p.link ?? "In development"}</p>
                         <div className="mt-4 flex items-center justify-between gap-3">
-                          <EditPanel action={updateProject.bind(null, p.id, p.image_path)}><ProjectFields p={p} sort={p.sort} /></EditPanel>
+                          <EditPanel action={updateProject.bind(null, p.id, p.image_path)}><ProjectFields p={p} sort={p.sort} tags={tags} /></EditPanel>
                           <form action={deleteProject.bind(null, p.id, p.image_path)} className="self-start">
                             <ConfirmButton message={`Delete "${p.title}"? This removes the project and its image for good.`} className="btn btn-ghost btn-sm" label={`Delete ${p.title}`}><Trash2 size={14} /></ConfirmButton>
                           </form>
@@ -482,7 +509,28 @@ export default async function AdminPage() {
                   ))}
                 </ul>
               )}
-              <AddPanel title="Add project" action={addProject}><ProjectFields sort={projects.length + 1} /></AddPanel>
+              <AddPanel title="Add project" action={addProject}><ProjectFields sort={projects.length + 1} tags={tags} /></AddPanel>
+
+              <h3 className="mb-3 mt-12 text-sm font-medium">Tags</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                {tags.map((t) => {
+                  const used = tagUse[t]?.length ?? 0;
+                  return (
+                    <span key={t} className="inline-flex items-center gap-2 rounded-full border border-line py-1 pl-3 pr-1 text-sm">
+                      {t}<span className="font-mono text-xs text-muted" title="Projects using this tag">{used}</span>
+                      {used === 0 ? (
+                        <form action={deleteTag.bind(null, t)} className="flex">
+                          <ConfirmButton message={`Delete the tag "${t}"?`} className="rounded-full p-1 text-muted hover:text-ink" label={`Delete tag ${t}`}><X size={14} /></ConfirmButton>
+                        </form>
+                      ) : <span className="w-1" />}
+                    </span>
+                  );
+                })}
+                <form action={addTag} className="flex items-center gap-2">
+                  <input name="name" required maxLength={100} placeholder="New tag" aria-label="New tag name" className={`${input} w-40 text-sm`} />
+                  <button type="submit" className="btn btn-ghost btn-sm"><Plus size={14} /> Add tag</button>
+                </form>
+              </div>
             </section>
 
             {/* Team */}

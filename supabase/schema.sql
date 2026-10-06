@@ -21,11 +21,16 @@ create table if not exists testimonials (
   created_at timestamptz not null default now()
 );
 
+create table if not exists tags (
+  name text primary key,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists projects (
   id bigint generated always as identity primary key,
   title text not null,
   link text,
-  tag text not null,
+  tag text not null references tags (name) on update cascade on delete restrict,
   description text not null,
   image_url text,
   image_path text,
@@ -49,6 +54,7 @@ alter table testimonials add column if not exists declined boolean not null defa
 
 alter table inquiries enable row level security;
 alter table testimonials enable row level security;
+alter table tags enable row level security;
 alter table projects enable row level security;
 alter table team enable row level security;
 
