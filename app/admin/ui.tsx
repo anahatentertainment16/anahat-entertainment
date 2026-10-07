@@ -60,9 +60,6 @@ export function AdminShell({ me, children }: { me: Me; children: React.ReactNode
             <span className="font-display text-lg tracking-tight">Anahat</span>
             <span className="block text-xs text-muted">Studio desk</span>
           </Link>
-          <SignOutButton redirectUrl="/">
-            <button className="btn btn-ghost btn-sm lg:hidden" aria-label="Log out"><LogOut size={14} /></button>
-          </SignOutButton>
         </div>
         <Suspense fallback={<AdminNav items={navItems(me)} />}><NavWithCounts me={me} /></Suspense>
         <div className="mt-auto hidden border-t border-line pt-5 lg:block">
