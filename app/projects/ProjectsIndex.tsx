@@ -15,9 +15,9 @@ function span(i: number, n: number) {
 }
 
 export default function ProjectsIndex({ projects }: { projects: Project[] }) {
-  const tags = [...new Set(projects.map((p) => p.tag))];
+  const tags = [...new Set(projects.flatMap((p) => p.tags))].sort();
   const [tag, setTag] = useState<string | null>(null);
-  const shown = tag ? projects.filter((p) => p.tag === tag) : projects;
+  const shown = tag ? projects.filter((p) => p.tags.includes(tag)) : projects;
 
   return (
     <>
@@ -52,7 +52,7 @@ export default function ProjectsIndex({ projects }: { projects: Project[] }) {
               </div>
               <div className="mt-5 flex items-start justify-between gap-6">
                 <div>
-                  <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{p.tag}</span>
+                  <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{p.tags.join(" / ")}</span>
                   <h2 className="m-0 mt-2 font-display text-2xl font-semibold leading-[1.05] tracking-tight md:text-3xl">{p.title}</h2>
                 </div>
                 {p.link ? (

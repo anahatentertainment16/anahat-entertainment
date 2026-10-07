@@ -1,0 +1,23 @@
+"use client";
+
+import Link from "next/link";
+import { RotateCcw } from "lucide-react";
+
+// Shown when a page or a save fails. In production Next hides server error details, so the copy stays general.
+export default function AdminError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return (
+    <div className="py-10">
+      <div className="max-w-xl">
+        <h1 className="font-display text-4xl leading-[1.05] tracking-tight md:text-5xl">That didn&rsquo;t go through.</h1>
+        <p className="mt-4 text-muted">
+          {process.env.NODE_ENV === "development" ? error.message : "Something failed while loading or saving. Check what you entered and try again. If it keeps happening, share the reference below with whoever maintains the site."}
+        </p>
+        {error.digest && <p className="mt-3 font-mono text-xs text-muted">Reference: {error.digest}</p>}
+        <div className="mt-8 flex flex-wrap gap-2">
+          <button onClick={reset} className="btn btn-solid btn-sm"><RotateCcw size={14} /> Try again</button>
+          <Link href="/admin" className="btn btn-ghost btn-sm">Back to overview</Link>
+        </div>
+      </div>
+    </div>
+  );
+}

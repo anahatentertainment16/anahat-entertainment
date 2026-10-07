@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
+import { PROJECT_SELECT, withTags } from "@/lib/projects";
 import { OG_BASE, OG_IMAGE, SITE_URL, WRAP } from "@/lib/site";
 import type { Project } from "../Home";
 import ProjectsIndex from "./ProjectsIndex";
@@ -21,11 +22,11 @@ export const metadata: Metadata = {
 export default async function ProjectsPage() {
   const { data, error } = await supabase
     .from("projects")
-    .select("id, title, link, tag, description, image_url, featured")
+    .select(PROJECT_SELECT)
     .order("sort")
     .order("created_at");
   if (error) console.error("Projects load failed:", error.message);
-  const projects = (data as Project[]) ?? [];
+  const projects: Project[] = withTags(data ?? []);
 
   return (
     <main className={`${WRAP} min-h-[100dvh] py-16 md:py-24`}>

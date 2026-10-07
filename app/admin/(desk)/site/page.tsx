@@ -1,9 +1,13 @@
 import { revalidatePath } from "next/cache";
-import { SignOutButton } from "@clerk/nextjs";
+import type { Metadata } from "next";
 import { supabase, PROJECT_BUCKET } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
-import { Check, ImageOff, LogOut, Mail, Plus, Trash2, X } from "lucide-react";
-import ConfirmButton from "./ConfirmButton";
+import { withTags } from "@/lib/projects";
+import { deletePortfolioProject } from "@/lib/deletion";
+import { requireSuper, safeLink } from "@/lib/admin";
+import { Check, ImageOff, Mail, Plus, Trash2, X } from "lucide-react";
+import ConfirmButton from "@/app/admin/ConfirmButton";
+import SubmitButton from "@/app/admin/SubmitButton";
+import { AddPanel, EditPanel, Empty, PageHeader, SectionHead, fmtDate, input, label, plural, summary } from "@/app/admin/ui";
 
 type Inquiry = {
   id: number;
@@ -19,7 +23,7 @@ type Project = {
   id: number;
   title: string;
   link: string | null;
-  tag: string;
+  tags: string[];
   description: string;
   image_url: string | null;
   image_path: string | null;
@@ -51,7 +55,7 @@ async function getData() {
   const [inquiries, testimonials, projects, team, tags] = await Promise.all([
     supabase.from("inquiries").select("*").order("created_at", { ascending: false }),
     supabase.from("testimonials").select("*").order("approved").order("created_at", { ascending: false }),
-    supabase.from("projects").select("*").order("sort").order("created_at"),
+    supabase.from("projects").select("*, project_tags(tag)").order("sort").order("created_at"),
     supabase.from("team").select("*").order("sort").order("created_at"),
     supabase.from("tags").select("name").order("name"),
   ]);
@@ -60,7 +64,7 @@ async function getData() {
   return {
     inquiries: (inquiries.data ?? []) as Inquiry[],
     testimonials: (testimonials.data ?? []) as Testimonial[],
-    projects: (projects.data ?? []) as Project[],
+    projects: withTags(projects.data ?? []) as Project[],
     team: (team.data ?? []) as Member[],
     tags: (tags.data ?? []).map((t) => t.name as string),
     error: error?.message ?? null,
@@ -70,24 +74,24 @@ async function getData() {
 
 async function approveTestimonial(id: number) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   await supabase.from("testimonials").update({ approved: true, declined: false }).eq("id", id);
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
 }
 
 // Decline (pending) and Remove (live) both archive rather than delete.
 async function declineTestimonial(id: number) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   await supabase.from("testimonials").update({ approved: false, declined: true }).eq("id", id);
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
 }
 
 async function deleteTestimonial(id: number) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   await supabase.from("testimonials").delete().eq("id", id).eq("declined", true);
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
 }
 
 const IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" };
@@ -103,20 +107,23 @@ async function uploadImage(file: FormDataEntryValue | null, folder = "") {
   return { url: supabase.storage.from(PROJECT_BUCKET).getPublicUrl(path).data.publicUrl, path };
 }
 
-// Rendered as a public href, so only allow http(s) to block javascript: URLs.
-const safeLink = (raw: FormDataEntryValue | null) => {
-  const v = String(raw ?? "").trim();
-  return v && /^https?:\/\//i.test(v) ? new URL(v).toString() : null;
-};
-
-// Shared by add and edit: the text fields, validated.
+// Shared by add and edit: the text fields, validated. Tags are optional and saved separately.
 function projectFields(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim().slice(0, 200);
-  const tag = String(formData.get("tag") ?? "").trim().slice(0, 100);
   const description = String(formData.get("description") ?? "").trim().slice(0, 2000);
   const sort = Number(formData.get("sort")) || 0;
-  if (!title || !tag || !description) throw new Error("Title, tag and description are required");
-  return { title, tag, description, sort, featured: formData.get("featured") === "on", link: safeLink(formData.get("link")) };
+  if (!title || !description) throw new Error("Title and description are required");
+  return { title, description, sort, featured: formData.get("featured") === "on", link: safeLink(formData.get("link")) };
+}
+
+// Replaces a project's tags with the ticked ones (none is fine). The foreign key rejects unknown tags.
+async function saveTags(projectId: number, formData: FormData) {
+  const tags = [...new Set(formData.getAll("tags").map(String))];
+  const cleared = await supabase.from("project_tags").delete().eq("project_id", projectId);
+  if (cleared.error) throw new Error(`Tag save failed: ${cleared.error.message}`);
+  if (!tags.length) return;
+  const { error } = await supabase.from("project_tags").insert(tags.map((tag) => ({ project_id: projectId, tag })));
+  if (error) throw new Error(`Tag save failed: ${error.message}`);
 }
 
 function teamFields(formData: FormData) {
@@ -129,25 +136,28 @@ function teamFields(formData: FormData) {
 
 async function addProject(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   const fields = projectFields(formData);
   const { url: image_url, path: image_path } = await uploadImage(formData.get("image"));
 
-  const { error } = await supabase.from("projects").insert({ ...fields, image_url, image_path });
+  const { data, error } = await supabase.from("projects").insert({ ...fields, image_url, image_path }).select("id").single();
   if (error) {
     if (image_path) await supabase.storage.from(PROJECT_BUCKET).remove([image_path]);
     throw new Error(`Project save failed: ${error.message}`);
   }
-  revalidatePath("/admin");
+  await saveTags(data.id, formData);
+  revalidatePath("/admin", "layout");
   revalidatePath("/");
   revalidatePath("/projects");
 }
 
 // A new image replaces the old one, which is removed only once the row points at the new one.
-async function updateProject(id: number, oldPath: string | null, formData: FormData) {
+// Old path comes from the row, not a bound arg: bound args aren't encrypted, so the browser could swap them.
+async function updateProject(id: number, formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   const fields = projectFields(formData);
+  const { data: old } = await supabase.from("projects").select("image_path").eq("id", id).maybeSingle<{ image_path: string | null }>();
   const { url: image_url, path: image_path } = await uploadImage(formData.get("image"));
 
   const { error } = await supabase.from("projects").update(image_path ? { ...fields, image_url, image_path } : fields).eq("id", id);
@@ -155,52 +165,47 @@ async function updateProject(id: number, oldPath: string | null, formData: FormD
     if (image_path) await supabase.storage.from(PROJECT_BUCKET).remove([image_path]);
     throw new Error(`Project update failed: ${error.message}`);
   }
-  if (image_path && oldPath) await supabase.storage.from(PROJECT_BUCKET).remove([oldPath]);
-  revalidatePath("/admin");
+  if (image_path && old?.image_path) await supabase.storage.from(PROJECT_BUCKET).remove([old.image_path]);
+  await saveTags(id, formData);
+  revalidatePath("/admin", "layout");
   revalidatePath("/");
   revalidatePath("/projects");
 }
 
-async function deleteProject(id: number, imagePath: string | null) {
+// Archives the project, then deletes it, its tags and its image.
+async function deleteProject(id: number) {
   "use server";
-  await requireAdmin();
-  await supabase.from("projects").delete().eq("id", id);
-  if (imagePath) await supabase.storage.from(PROJECT_BUCKET).remove([imagePath]);
-  revalidatePath("/admin");
+  const me = await requireSuper();
+  await deletePortfolioProject(me, id);
+  revalidatePath("/admin", "layout");
   revalidatePath("/");
   revalidatePath("/projects");
 }
 
 async function addTag(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   const name = String(formData.get("name") ?? "").trim().slice(0, 100);
   if (!name) throw new Error("Tag name is required");
   const { error } = await supabase.from("tags").insert({ name });
   if (error) throw new Error(error.code === "23505" ? `Tag "${name}" already exists` : `Tag save failed: ${error.message}`);
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
 }
 
-// A tag in use needs a "moveTo" tag; its projects move there first. The foreign key refuses the delete otherwise.
-// ponytail: two calls, not a transaction. If the delete fails the projects stay moved, which is harmless.
-async function deleteTag(name: string, formData: FormData) {
+// Deleting a tag just removes it from its projects (project_tags cascades).
+async function deleteTag(name: string) {
   "use server";
-  await requireAdmin();
-  const moveTo = String(formData.get("moveTo") ?? "");
-  if (moveTo && moveTo !== name) {
-    const moved = await supabase.from("projects").update({ tag: moveTo }).eq("tag", name);
-    if (moved.error) throw new Error(`Moving projects failed: ${moved.error.message}`);
-    revalidatePath("/");
-    revalidatePath("/projects");
-  }
+  await requireSuper();
   const { error } = await supabase.from("tags").delete().eq("name", name);
-  if (error) throw new Error(error.code === "23503" ? `"${name}" is still used by a project` : `Tag delete failed: ${error.message}`);
-  revalidatePath("/admin");
+  if (error) throw new Error(`Tag delete failed: ${error.message}`);
+  revalidatePath("/admin", "layout");
+  revalidatePath("/");
+  revalidatePath("/projects");
 }
 
 async function addTeamMember(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   const fields = teamFields(formData);
   // ponytail: team photos share the projects bucket under team/, own bucket if access rules ever differ
   const { url: photo_url, path: photo_path } = await uploadImage(formData.get("photo"), "team/");
@@ -210,14 +215,15 @@ async function addTeamMember(formData: FormData) {
     if (photo_path) await supabase.storage.from(PROJECT_BUCKET).remove([photo_path]);
     throw new Error(`Team member save failed: ${error.message}`);
   }
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
   revalidatePath("/");
 }
 
-async function updateTeamMember(id: number, oldPath: string | null, formData: FormData) {
+async function updateTeamMember(id: number, formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireSuper();
   const fields = teamFields(formData);
+  const { data: old } = await supabase.from("team").select("photo_path").eq("id", id).maybeSingle<{ photo_path: string | null }>();
   const { url: photo_url, path: photo_path } = await uploadImage(formData.get("photo"), "team/");
 
   const { error } = await supabase.from("team").update(photo_path ? { ...fields, photo_url, photo_path } : fields).eq("id", id);
@@ -225,41 +231,38 @@ async function updateTeamMember(id: number, oldPath: string | null, formData: Fo
     if (photo_path) await supabase.storage.from(PROJECT_BUCKET).remove([photo_path]);
     throw new Error(`Team member update failed: ${error.message}`);
   }
-  if (photo_path && oldPath) await supabase.storage.from(PROJECT_BUCKET).remove([oldPath]);
-  revalidatePath("/admin");
+  if (photo_path && old?.photo_path) await supabase.storage.from(PROJECT_BUCKET).remove([old.photo_path]);
+  revalidatePath("/admin", "layout");
   revalidatePath("/");
 }
 
-async function deleteTeamMember(id: number, photoPath: string | null) {
+async function deleteTeamMember(id: number) {
   "use server";
-  await requireAdmin();
-  await supabase.from("team").delete().eq("id", id);
-  if (photoPath) await supabase.storage.from(PROJECT_BUCKET).remove([photoPath]);
-  revalidatePath("/admin");
+  await requireSuper();
+  const { data } = await supabase.from("team").delete().eq("id", id).select("photo_path").maybeSingle<{ photo_path: string | null }>();
+  if (data?.photo_path) await supabase.storage.from(PROJECT_BUCKET).remove([data.photo_path]);
+  revalidatePath("/admin", "layout");
   revalidatePath("/");
 }
 
-// Shape rule for this page: buttons are pills (.btn), cards are 16px, inputs are underlines (.field).
-const label = "flex flex-col gap-1 text-sm text-muted";
-const input = "field text-ink";
 const fileInput = "text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-line file:bg-transparent file:px-3 file:py-1.5 file:text-ink";
-const formGrid = "grid gap-x-6 gap-y-5 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]";
-const summary = "cursor-pointer list-none [&::-webkit-details-marker]:hidden";
 const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
-
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // Add and edit share these fields; edit passes the current row as defaults.
 const ProjectFields = ({ p, sort, tags }: { p?: Project; sort: number; tags: string[] }) => (
   <>
     <label className={label}>Title<input name="title" required maxLength={200} defaultValue={p?.title} className={input} /></label>
-    <label className={label}>Tag
-      <select name="tag" required defaultValue={p?.tag ?? ""} className={input}>
-        <option value="" disabled>{tags.length ? "Choose a tag" : "Add a tag first"}</option>
-        {tags.map((t) => <option key={t} value={t}>{t}</option>)}
-      </select>
-    </label>
+    <fieldset className="col-span-full">
+      <legend className="text-sm text-muted">Tags (optional, pick any)</legend>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {tags.length === 0 && <span className="text-sm text-muted">No tags yet. Add some below the projects.</span>}
+        {tags.map((t) => (
+          <label key={t} className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1 text-sm has-[:checked]:border-ink has-[:checked]:bg-surface">
+            <input type="checkbox" name="tags" value={t} defaultChecked={p?.tags.includes(t)} className="size-3.5 accent-[var(--accent-text)]" />{t}
+          </label>
+        ))}
+      </div>
+    </fieldset>
     <label className={label}>Link (optional)<input name="link" type="url" placeholder="https://" defaultValue={p?.link ?? ""} className={input} /></label>
     <label className={label}>Order<input name="sort" type="number" defaultValue={sort} className={input} /></label>
     <label className={`${label} col-span-full`}>Description<textarea name="description" required rows={3} maxLength={2000} defaultValue={p?.description} className={input} /></label>
@@ -278,55 +281,17 @@ const TeamFields = ({ m, sort }: { m?: Member; sort: number }) => (
   </>
 );
 
-const SectionHead = ({ id, title, meta }: { id: string; title: string; meta: string }) => (
-  <div className="mb-8 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-    <h2 id={`${id}-title`} className="font-display text-3xl tracking-tight md:text-4xl">{title}</h2>
-    <span className="text-sm text-muted">{meta}</span>
-  </div>
-);
+export const metadata: Metadata = { title: "Website" };
 
-const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-muted">{children}</p>
-);
-
-// Dashed tile that opens into the add form. ponytail: native <details>, no client state
-const AddPanel = ({ title, action, children }: { title: string; action: (fd: FormData) => Promise<void>; children: React.ReactNode }) => (
-  <details className="group mt-6 rounded-2xl border border-dashed border-line transition-colors open:border-solid open:bg-surface">
-    <summary className={`${summary} flex items-center gap-2 px-6 py-5 text-sm font-medium hover:text-accent`}>
-      <Plus size={16} className="transition-transform group-open:rotate-45" /> {title}
-    </summary>
-    <form action={action} className={`${formGrid} px-6 pb-6`}>
-      {children}
-      <div className="col-span-full"><button type="submit" className="btn btn-solid btn-sm">{title}</button></div>
-    </form>
-  </details>
-);
-
-const EditPanel = ({ action, children }: { action: (fd: FormData) => Promise<void>; children: React.ReactNode }) => (
-  <details className="group min-w-0 flex-1">
-    <summary className={`${summary} text-sm text-muted underline-offset-4 hover:text-ink hover:underline group-open:text-ink`}>Edit</summary>
-    <form action={action} className={`${formGrid} mt-5 border-t border-line pt-5`}>
-      {children}
-      <div className="col-span-full"><button type="submit" className="btn btn-solid btn-sm"><Check size={14} /> Save changes</button></div>
-    </form>
-  </details>
-);
-
-export default async function AdminPage() {
-  await requireAdmin();
+export default async function SitePage() {
+  await requireSuper();
   const { inquiries, testimonials, projects, team, tags, error, weekAgo } = await getData();
-  const tagUse = Object.groupBy(projects, (p) => p.tag);
+  const tagUse = Object.groupBy(projects.flatMap((p) => p.tags), (t) => t);
   const pending = testimonials.filter((t) => !t.approved && !t.declined);
   const approved = testimonials.filter((t) => t.approved);
   const archived = testimonials.filter((t) => t.declined);
   const recent = inquiries.filter((i) => new Date(i.created_at).getTime() > weekAgo).length;
 
-  const nav = [
-    { id: "inquiries", title: "Inquiries", count: inquiries.length },
-    { id: "testimonials", title: "Testimonials", count: pending.length, flag: pending.length > 0 },
-    { id: "projects", title: "Projects", count: projects.length },
-    { id: "team", title: "Team", count: team.length },
-  ];
 
   const testimonialActions = (t: Testimonial) => (
     <div className="flex flex-wrap gap-2">
@@ -352,26 +317,9 @@ export default async function AdminPage() {
   );
 
   return (
-    <main className="min-h-[100dvh] px-4 py-10 sm:px-8 lg:px-12 lg:py-14">
-      <div className="mx-auto max-w-[1280px]">
+    <>
 
-        {/* Header: the page's job is "what needs me", so the headline is built from live counts */}
-        <header className="flex flex-wrap items-start justify-between gap-6 border-b border-line pb-10">
-          <div className="max-w-3xl">
-            <p className="mb-4 text-sm text-muted">Anahat Entertainment admin</p>
-            <h1 className="font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">
-              {pending.length > 0 ? (
-                <><a href="#testimonials" className="text-accent u-link">{plural(pending.length, "testimonial")}</a> waiting for a decision.</>
-              ) : "Nothing waiting on you."}
-            </h1>
-            <p className="mt-4 text-base text-muted">
-              {recent > 0 ? `${plural(recent, "new inquiry", "new inquiries")} in the last 7 days.` : "No new inquiries in the last 7 days."}
-            </p>
-          </div>
-          <SignOutButton redirectUrl="/">
-            <button className="btn btn-ghost btn-sm"><LogOut size={14} /> Log out</button>
-          </SignOutButton>
-        </header>
+        <PageHeader title="Website" description={`What visitors see on the public site. ${recent > 0 ? `${plural(recent, "new inquiry", "new inquiries")} this week` : "No new inquiries this week"}, ${plural(pending.length, "testimonial")} to review.`} />
 
         {error && (
           <div role="alert" className="mt-8 rounded-2xl border border-accent/50 bg-accent/10 px-6 py-4 text-sm">
@@ -380,22 +328,7 @@ export default async function AdminPage() {
           </div>
         )}
 
-        <div className="mt-10 lg:grid lg:grid-cols-[200px_1fr] lg:gap-16">
-          {/* Section rail: sticky on desktop, a scrollable strip on mobile */}
-          <nav aria-label="Admin sections" className="sticky top-0 z-10 -mx-4 mb-10 overflow-x-auto border-b border-line bg-paper px-4 lg:top-10 lg:mx-0 lg:mb-0 lg:self-start lg:overflow-visible lg:border-0 lg:bg-transparent lg:px-0">
-            <ul className="flex gap-6 lg:flex-col lg:gap-1">
-              {nav.map((s) => (
-                <li key={s.id}>
-                  <a href={`#${s.id}`} className="flex items-center justify-between gap-3 whitespace-nowrap py-3 text-sm hover:text-accent lg:rounded-full lg:px-4 lg:py-2 lg:hover:bg-surface">
-                    {s.title}
-                    <span className={`font-mono text-xs ${s.flag ? "rounded-full bg-accent px-2 py-0.5 text-on-accent" : "text-muted"}`}>{s.count}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <div className="space-y-24">
+        <div className="mt-10 space-y-24">
 
             {/* Inquiries */}
             <section id="inquiries" aria-labelledby="inquiries-title" className="scroll-mt-20">
@@ -416,7 +349,7 @@ export default async function AdminPage() {
                         {row.message && (
                           // ponytail: native <details>, the clamped preview opens to the full message
                           <details className="group mt-3 max-w-[65ch]">
-                            <summary className={`${summary} line-clamp-2 whitespace-pre-wrap text-[15px] leading-relaxed text-muted group-open:line-clamp-none group-open:text-ink`}>{row.message}</summary>
+                            <summary className={`${summary} line-clamp-2 whitespace-pre-wrap wrap-anywhere text-[15px] leading-relaxed text-muted group-open:line-clamp-none group-open:text-ink`}>{row.message}</summary>
                           </details>
                         )}
                       </div>
@@ -500,16 +433,16 @@ export default async function AdminPage() {
                       <div className="p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-sm text-accent">{p.tag}{p.featured && <span className="text-muted"> / Featured</span>}</p>
+                            <p className="text-sm text-accent">{p.tags.join(" / ") || <span className="text-muted">No tags</span>}{p.featured && <span className="text-muted"> / Featured</span>}</p>
                             <h3 className="mt-1 font-display text-xl leading-tight">{p.title}</h3>
                           </div>
                           <span className="pt-1 font-mono text-xs text-muted" title="Display order">#{p.sort}</span>
                         </div>
                         <p className="mt-2 truncate text-sm text-muted">{p.link ?? "In development"}</p>
                         <div className="mt-4 flex items-center justify-between gap-3">
-                          <EditPanel action={updateProject.bind(null, p.id, p.image_path)}><ProjectFields p={p} sort={p.sort} tags={tags} /></EditPanel>
-                          <form action={deleteProject.bind(null, p.id, p.image_path)} className="self-start">
-                            <ConfirmButton message={`Delete "${p.title}"? This removes the project and its image for good.`} className="btn btn-ghost btn-sm" label={`Delete ${p.title}`}><Trash2 size={14} /></ConfirmButton>
+                          <EditPanel action={updateProject.bind(null, p.id)}><ProjectFields p={p} sort={p.sort} tags={tags} /></EditPanel>
+                          <form action={deleteProject.bind(null, p.id)} className="self-start">
+                            <ConfirmButton message={`Delete "${p.title}"? This removes the project and its image. A copy goes to the archive.`} className="btn btn-ghost btn-sm" label={`Delete ${p.title}`}><Trash2 size={14} /></ConfirmButton>
                           </form>
                         </div>
                       </div>
@@ -526,30 +459,15 @@ export default async function AdminPage() {
                   return (
                     <span key={t} className="inline-flex items-center gap-2 rounded-full border border-line py-1 pl-3 pr-1 text-sm">
                       {t}<span className="font-mono text-xs text-muted" title="Projects using this tag">{used}</span>
-                      {used === 0 ? (
-                        <form action={deleteTag.bind(null, t)} className="flex">
-                          <ConfirmButton message={`Delete the tag "${t}"?`} className="rounded-full p-1 text-muted hover:text-ink" label={`Delete tag ${t}`}><X size={14} /></ConfirmButton>
-                        </form>
-                      ) : (
-                        <details className="group flex items-center">
-                          <summary className={`${summary} rounded-full p-1 text-muted hover:text-ink group-open:text-ink`} aria-label={`Delete tag ${t}`} title={`Delete tag ${t}`}><X size={14} /></summary>
-                          {tags.length > 1 ? (
-                            <form action={deleteTag.bind(null, t)} className="flex items-center gap-2 pl-1 pr-2">
-                              <select name="moveTo" required defaultValue="" aria-label={`Move projects tagged ${t} to`} className={`${input} text-sm`}>
-                                <option value="" disabled>Move {used} to…</option>
-                                {tags.filter((o) => o !== t).map((o) => <option key={o} value={o}>{o}</option>)}
-                              </select>
-                              <ConfirmButton message={`Move ${plural(used, "project")} to the chosen tag and delete "${t}"?`} className="btn btn-ghost btn-sm">Move &amp; delete</ConfirmButton>
-                            </form>
-                          ) : <span className="px-2 text-xs text-muted">Add another tag to move its projects to</span>}
-                        </details>
-                      )}
+                      <form action={deleteTag.bind(null, t)} className="flex">
+                        <ConfirmButton message={used ? `Delete the tag "${t}"? It comes off ${plural(used, "project")}.` : `Delete the tag "${t}"?`} className="rounded-full p-1.5 text-muted hover:text-ink" label={`Delete tag ${t}`}><X size={14} /></ConfirmButton>
+                      </form>
                     </span>
                   );
                 })}
                 <form action={addTag} className="flex items-center gap-2">
-                  <input name="name" required maxLength={100} placeholder="New tag" aria-label="New tag name" className={`${input} w-40 text-sm`} />
-                  <button type="submit" className="btn btn-ghost btn-sm"><Plus size={14} /> Add tag</button>
+                  <input name="name" required maxLength={100} placeholder="New tag" aria-label="New tag name" className={`${input} w-40`} />
+                  <SubmitButton className="btn btn-ghost btn-sm" pending="Adding…"><Plus size={14} /> Add tag</SubmitButton>
                 </form>
               </div>
             </section>
@@ -579,8 +497,8 @@ export default async function AdminPage() {
                         </div>
                         <p className="mt-2 truncate text-sm text-muted">{m.link ?? "No profile link"}</p>
                         <div className="mt-4 flex items-center justify-between gap-3">
-                          <EditPanel action={updateTeamMember.bind(null, m.id, m.photo_path)}><TeamFields m={m} sort={m.sort} /></EditPanel>
-                          <form action={deleteTeamMember.bind(null, m.id, m.photo_path)} className="self-start">
+                          <EditPanel action={updateTeamMember.bind(null, m.id)}><TeamFields m={m} sort={m.sort} /></EditPanel>
+                          <form action={deleteTeamMember.bind(null, m.id)} className="self-start">
                             <ConfirmButton message={`Remove ${m.name} from the team? Their photo is deleted for good.`} className="btn btn-ghost btn-sm" label={`Remove ${m.name}`}><Trash2 size={14} /></ConfirmButton>
                           </form>
                         </div>
@@ -592,9 +510,7 @@ export default async function AdminPage() {
               <AddPanel title="Add member" action={addTeamMember}><TeamFields sort={team.length + 1} /></AddPanel>
             </section>
 
-          </div>
         </div>
-      </div>
-    </main>
+    </>
   );
 }

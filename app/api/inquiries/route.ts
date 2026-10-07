@@ -1,6 +1,8 @@
-import { supabase } from "@/lib/supabase";
+import { clientIp, overLimit, supabase } from "@/lib/supabase";
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (await overLimit("inquiries", "ip", ip, 5, 10)) return Response.json({ error: "Too many requests, try again later" }, { status: 429 });
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return Response.json({ error: "Invalid request" }, { status: 400 });
   const { service, name, email, company, message, website } = body;
@@ -26,6 +28,7 @@ export async function POST(request: Request) {
     email: email.trim(),
     company: company ? String(company).slice(0, 200) : null,
     message: message ? String(message).slice(0, 5000) : null,
+    ip,
   });
   if (error) {
     console.error("Inquiry insert error:", error.message);

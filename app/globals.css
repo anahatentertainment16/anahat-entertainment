@@ -34,6 +34,7 @@ body {
   font-family: var(--font-geist), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 /* Orange text uses the darker shade so it stays readable on cream */
@@ -73,13 +74,17 @@ body::after {
   cursor: pointer;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
-.btn:hover { transform: translateY(-2px); }
 .btn:active { transform: translateY(0) scale(0.98); }
 .btn-solid { background: var(--ink); color: var(--paper); }
-.btn-solid:hover { background: var(--accent); color: var(--on-accent); }
 .btn-ghost { border: 1px solid var(--line); color: var(--ink); }
-.btn-ghost:hover { border-color: var(--ink); }
 .btn-sm { padding: 8px 16px; font-size: 13px; gap: 6px; }
+/* Hover only where a pointer hovers: on touch screens a tap would leave buttons stuck lifted */
+@media (hover: hover) {
+  .btn:hover { transform: translateY(-2px); }
+  .btn-solid:hover { background: var(--accent); color: var(--on-accent); }
+  .btn-ghost:hover { border-color: var(--ink); }
+  .on-accent .btn-solid:hover { background: var(--paper); color: var(--ink); }
+}
 
 /* Underline-on-hover links */
 .u-link { position: relative; text-decoration: none; }
@@ -95,7 +100,7 @@ body::after {
   transform-origin: right;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.u-link:hover::after { transform: scaleX(1); transform-origin: left; }
+@media (hover: hover) { .u-link:hover::after { transform: scaleX(1); transform-origin: left; } }
 
 /* Hamburger */
 .nav-hamburger span {
@@ -114,25 +119,26 @@ body::after {
 /* Mobile overlay, GSAP controls visibility/clip-path */
 .nav-mobile-menu { visibility: hidden; clip-path: inset(0 0 100% 0); }
 
-/* Form fields: inherit color so they work on paper and on the accent panel */
-.field {
-  width: 100%;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  color: inherit;
-  font: inherit;
-  font-size: 17px;
-  padding: 10px 0;
-  border-radius: 0;
-  outline: none;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+@layer components {
+  /* Form fields: inherit color so they work on paper and on the accent panel */
+  .field {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+    color: inherit;
+    font: inherit;
+    font-size: 17px;
+    padding: 10px 0;
+    border-radius: 0;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .field:focus { border-color: currentColor; box-shadow: 0 1px 0 currentColor; }
+  textarea.field { resize: vertical; }
 }
-.field:focus { border-color: currentColor; box-shadow: 0 1px 0 currentColor; }
-textarea.field { resize: vertical; }
 
 /* Solid button inside the accent panel must not hover into the panel color */
-.on-accent .btn-solid:hover { background: var(--paper); color: var(--ink); }
 
 
 
@@ -148,4 +154,11 @@ textarea.field { resize: vertical; }
 @keyframes wordmark-wave {
   0%, 100% { transform: translateY(0); }
   35% { transform: translateY(-0.07em); }
+}
+
+/* Printing (invoices): plain white page, no grain overlay */
+@media print {
+  body { background: #fff; }
+  body::after { display: none; }
+  .bg-surface { box-shadow: none; }
 }

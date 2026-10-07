@@ -5,7 +5,7 @@ import { gsap } from "gsap";
 import Hairline from "./Hairline";
 import { markReady } from "./ready";
 
-const FILL_S = 2;    // the bar always takes 2s from 0 to 100
+const FILL_S = 1.1;  // the bar takes 1.1s from 0 to 100: long enough to read as an intro, short enough not to feel like a wait
 const MAX_MS = 6000; // after the fill, wait for the page at most this long
 let shown = false;   // once per visit: client-side returns to the homepage skip it
 
@@ -47,8 +47,8 @@ export default function Loader() {
       if (dead) return;
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       gsap.to(root.current, {
-        ...(reduce ? { autoAlpha: 0, duration: 0.3 } : { yPercent: -100, duration: 0.9, ease: "power4.inOut" }),
-        delay: 0.7, // let the last tile land first
+        ...(reduce ? { autoAlpha: 0, duration: 0.25 } : { yPercent: -100, duration: 0.7, ease: "power4.inOut" }),
+        delay: 0.25, // let the last tile land first
         onStart: markReady,
         onComplete: () => { html.style.overflow = ""; setVisible(false); },
       });

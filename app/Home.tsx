@@ -21,7 +21,7 @@ import { ArrowRight, ArrowUp, ArrowUpRight, ChevronDown, Clock, Mail, MapPin } f
 
 type Testimonial = { id: number; name: string; org: string | null; quote: string };
 
-export type Project = { id: number; title: string; link: string | null; tag: string; description: string; image_url: string | null; featured: boolean };
+export type Project = { id: number; title: string; link: string | null; tags: string[]; description: string; image_url: string | null; featured: boolean };
 export type Member = { id: number; name: string; role: string; link: string | null; photo_url: string | null };
 
 const NAV = ["Services", "Projects", "Studio", "Voices"];
@@ -220,7 +220,7 @@ export default function Home({ projects, projectCount, team }: { projects: Proje
                       <article data-reveal className="grid overflow-hidden rounded-[20px] bg-surface lg:grid-cols-12">
                         <div className="relative aspect-[16/10] bg-paper lg:col-span-8 lg:aspect-auto lg:min-h-[460px]">{thumb(lead, "(max-width: 1024px) 100vw, 66vw")}</div>
                         <div className="flex flex-col items-start p-6 md:p-10 lg:col-span-4 lg:justify-center">
-                          <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{lead.tag}</span>
+                          <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{lead.tags.join(" / ")}</span>
                           <h3 className="m-0 mt-3 font-display text-3xl font-semibold leading-[1.02] tracking-tight md:text-5xl">{lead.title}</h3>
                           <p className="m-0 mt-4 max-w-[46ch] text-[15px] leading-relaxed text-muted">{lead.description}</p>
                           {lead.link ? (
@@ -240,7 +240,7 @@ export default function Home({ projects, projectCount, team }: { projects: Proje
                                 <div className={`relative aspect-[16/10] overflow-hidden rounded-[20px] bg-surface ${wide ? "md:aspect-[21/9]" : ""}`}>{thumb(p, wide ? "100vw" : "(max-width: 768px) 100vw, 50vw")}</div>
                                 <div className="mt-5 flex items-start justify-between gap-6">
                                   <div>
-                                    <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{p.tag}</span>
+                                    <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">{p.tags.join(" / ")}</span>
                                     <h3 className="m-0 mt-2 font-display text-2xl font-semibold leading-[1.05] tracking-tight md:text-3xl">{p.title}</h3>
                                   </div>
                                   {p.link ? <ArrowUpRight size={26} className="mt-5 shrink-0" /> : <span className="mt-5 inline-flex shrink-0 items-center gap-1.5 text-sm text-muted"><Clock size={15} /> In development</span>}

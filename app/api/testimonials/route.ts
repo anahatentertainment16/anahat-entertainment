@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { clientIp, overLimit, supabase } from "@/lib/supabase";
 
 export async function GET() {
   const { data, error } = await supabase
@@ -11,6 +11,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const ip = clientIp(request);
+  if (await overLimit("testimonials", "ip", ip, 3, 60)) return Response.json({ error: "Too many requests, try again later" }, { status: 429 });
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return Response.json({ error: "Invalid request" }, { status: 400 });
   const { name, org, quote, website } = body;
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
 
   const { error } = await supabase
     .from("testimonials")
-    .insert({ name: name.trim(), org: org ? String(org).slice(0, 200) : null, quote: quote.trim() });
+    .insert({ name: name.trim(), org: org ? String(org).slice(0, 200) : null, quote: quote.trim(), ip });
   if (error) {
     console.error("Testimonial insert error:", error.message);
     return Response.json({ error: "Database error" }, { status: 500 });
